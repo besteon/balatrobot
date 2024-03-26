@@ -1,10 +1,8 @@
-print("Mod loaded!")
 
---local hook = require "mods/initmods/hook"
-local Middleware = require "mods/initmods/middleware"
+local Middleware = require "mods/balatrobot/middleware"
 
 local function init_mod()
-    print("init_mod")
+    print("Balatrobot v0.1 loaded")
 
     Middleware.hookbalatro()
 end

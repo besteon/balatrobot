@@ -1,6 +1,6 @@
 
-local Hook = require "mods/initmods/hook"
-local Bot = require "mods/initmods/bot"
+local Hook = require "mods/balatrobot/hook"
+local Bot = require "mods/balatrobot/bot"
 
 function random_key(tb)
     local keys = {}
