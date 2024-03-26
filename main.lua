@@ -11,7 +11,7 @@ function SMODS.INIT.BALATROBOT()
 	assert(load(love.filesystem.read(mw.path .. "bot.lua")))()
 	assert(load(love.filesystem.read(mw.path .. "middleware.lua")))()
 
-	print("Balatrobot v0.1 loaded")
+	sendDebugMessage("Balatrobot v0.1 loaded")
 
 	Middleware.hookbalatro()
 end
