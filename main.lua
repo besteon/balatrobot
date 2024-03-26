@@ -1,10 +1,17 @@
+--- STEAMODDED HEADER
+--- MOD_NAME: Balatrobot
+--- MOD_ID: Balatrobot-v0.1
+--- MOD_AUTHOR: [Besteon]
+--- MOD_DESCRIPTION: A botting API for Balatro
 
-local Middleware = require "mods/balatrobot/middleware"
+function SMODS.INIT.BALATROBOT()
+	mw = SMODS.findModByID("Balatrobot-v0.1")
 
-local function init_mod()
-    print("Balatrobot v0.1 loaded")
+	assert(load(love.filesystem.read(mw.path .. "hook.lua")))()
+	assert(load(love.filesystem.read(mw.path .. "bot.lua")))()
+	assert(load(love.filesystem.read(mw.path .. "middleware.lua")))()
 
-    Middleware.hookbalatro()
+	print("Balatrobot v0.1 loaded")
+
+	Middleware.hookbalatro()
 end
-
-init_mod()

@@ -1,6 +1,6 @@
 
-local Hook = require "mods/balatrobot/hook"
-local Bot = require "mods/balatrobot/bot"
+--local Hook = require "hook"
+--local Bot = require "bot"
 
 function random_key(tb)
     local keys = {}
@@ -14,7 +14,7 @@ function random_element(tb)
     return tb[keys[math.random(#keys)]]
 end
 
-local Middleware = { }
+Middleware = { }
 
 Middleware.action_pending = false
 

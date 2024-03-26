@@ -1,6 +1,6 @@
 local unpack = unpack or table.unpack
 
-local Hook = {}
+Hook = {}
 
 Hook.FUNCTYPES = {
 	BREAKPOINT = '__breakpoints',

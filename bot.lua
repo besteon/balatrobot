@@ -1,5 +1,5 @@
 
-local Bot = { }
+Bot = { }
 
 Bot.SETTINGS = {
     stake = 2,
