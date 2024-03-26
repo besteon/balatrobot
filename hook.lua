@@ -23,23 +23,25 @@ end
 
 local function _inithook(obj)	
 	local t = type(obj)
+
+	-- Return if already initialized
 	if t == 'table' and obj.__inithook then return obj end
 
-	local f = { }
-	f.__inithook = true
-	f.__breakpoints = { }
-	f.__callbacks = { }
-	f.__onreads = { }
-	f.__onwrites = { }
-	f.__orig = obj
+	local hook = { }
+	hook.__inithook = true
+	hook.__breakpoints = { }
+	hook.__callbacks = { }
+	hook.__onreads = { }
+	hook.__onwrites = { }
+	hook.__orig = obj
 
 	local _metatable = { }
 
 	if t == 'function' then
 		_metatable['__call'] = function(obj, ...)
-			_callfuncs(f, Hook.FUNCTYPES.BREAKPOINT, ...)
-			local result = f.__orig(...)
-			_callfuncs(f, Hook.FUNCTYPES.CALLBACK, ..., result)
+			_callfuncs(hook, Hook.FUNCTYPES.BREAKPOINT, ...)
+			local result = hook.__orig(...)
+			_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, ..., result)
 
 			return result
 		end
@@ -48,55 +50,40 @@ local function _inithook(obj)
 	if t == 'table' then
 		_metatable['__index'] = function (...)
 			local t, k = ...
-			--print("*access to element " .. tostring(k))
-			_callfuncs(f, Hook.FUNCTYPES.ONREAD, ...)
-			return f.__orig[k]   -- access the original table
+			_callfuncs(hook, Hook.FUNCTYPES.ONREAD, ...)
+			return hook.__orig[k]
 		end
 
 		_metatable['__newindex'] = function (...)
 			local t, k, v = ...
-			--print("*update of element " .. tostring(k) .." to " .. tostring(v))
-			_nv = _callfuncs(f, Hook.FUNCTYPES.ONWRITE, ...)
-			if _nv ~= nil then
-				v = _nv
-			end
-			f.__orig[k] = v   -- update original table
+			v = _callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...) or v
+			hook.__orig[k] = v
 		end
 	end
 
-	setmetatable(f, _metatable)
+	setmetatable(hook, _metatable)
 	
-	return f
+	return hook
 end
 
 local function _addfunc(obj, which, func, ephemeral)
-	if func == nil then
-		return obj
-	end
+	if func == nil then	return obj	end
 	obj = _inithook(obj)
 
-	local _f_index = #obj[which]+1
-	local f = nil
-	if ephemeral then
-		f = function(...)
+	local _f_index = #obj[which] + 1
+
+	obj[which][_f_index] = ephemeral and
+		function(...)
 			local _ret = func(...)
-			-- TODO pass f to this someone (the modified func)
 			obj = _clearfunc(obj, which, _f_index)
 			return _ret
-		end
-	else
-		f = func
-	end
+		end or func
 
-	obj[which][_f_index] = f
 	return obj
 end
 
 function _clearfunc(obj, which, func_index)
-	if obj == nil then
-		return obj
-	end
-	
+	if obj == nil then return obj end
 	obj[which][func_index] = nil
 	return obj
 end
@@ -105,7 +92,6 @@ local function ishooked(obj)
 	if type(obj) == 'table' and obj.__inithook then return true end
 	return false
 end
-
 
 function Hook.addbreakpoint(obj, func, ephemeral)
 	return _addfunc(obj, Hook.FUNCTYPES.BREAKPOINT, func, ephemeral)
