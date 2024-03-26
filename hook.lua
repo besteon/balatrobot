@@ -10,22 +10,22 @@ Hook.FUNCTYPES = {
 }
 
 local function _callfuncs(obj, which, ...)
-	local result = nil
+	local _result = nil
 
 	for i = 1, #obj[which], 1 do
-		result = {obj[which][i](...)}
+		_result = {obj[which][i](...)}
 
-		if result ~= nil and #result > 0 then
-			return unpack(result)
+		if _result ~= nil and #_result > 0 then
+			return unpack(_result)
 		end
 	end
 end
 
 local function _inithook(obj)	
-	local t = type(obj)
+	local typ = type(obj)
 
 	-- Return if already initialized
-	if t == 'table' and obj.__inithook then return obj end
+	if typ == 'table' and obj.__inithook then return obj end
 
 	local hook = { }
 	hook.__inithook = true
@@ -37,7 +37,7 @@ local function _inithook(obj)
 
 	local _metatable = { }
 
-	if t == 'function' then
+	if typ == 'function' then
 		_metatable['__call'] = function(obj, ...)
 			_callfuncs(hook, Hook.FUNCTYPES.BREAKPOINT, ...)
 			local result = hook.__orig(...)
@@ -47,17 +47,17 @@ local function _inithook(obj)
 		end
 	end
 
-	if t == 'table' then
+	if typ == 'table' then
 		_metatable['__index'] = function (...)
-			local t, k = ...
+			local _t, _k = ...
 			_callfuncs(hook, Hook.FUNCTYPES.ONREAD, ...)
-			return hook.__orig[k]
+			return hook.__orig[_k]
 		end
 
 		_metatable['__newindex'] = function (...)
-			local t, k, v = ...
-			v = _callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...) or v
-			hook.__orig[k] = v
+			local _t, _k, _v = ...
+			_v = _callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...) or _v
+			hook.__orig[_k] = _v
 		end
 	end
 
