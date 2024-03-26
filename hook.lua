@@ -21,103 +21,106 @@ local function _callfuncs(obj, which, ...)
 	end
 end
 
-local function _inithook(obj)
+local function _inithook(obj)	
 	local t = type(obj)
+	if t == 'table' and obj.__inithook then return obj end
 
-	local f = nil
+	local f = { }
+	f.__inithook = true
+	f.__breakpoints = { }
+	f.__callbacks = { }
+	f.__onreads = { }
+	f.__onwrites = { }
+	f.__orig = obj
+
+	local _metatable = { }
 
 	if t == 'function' then
-		f = { }
-	
-		f.__breakpoints = {  }
-		f.__callbacks = { }
+		_metatable['__call'] = function(obj, ...)
+			_callfuncs(f, Hook.FUNCTYPES.BREAKPOINT, ...)
+			local result = f.__orig(...)
+			_callfuncs(f, Hook.FUNCTYPES.CALLBACK, ..., result)
 
-		f.__func = obj
-		
-		setmetatable(f, {
-			__call = function(obj, ...)
-				_callfuncs(f, Hook.FUNCTYPES.BREAKPOINT, ...)
-				local result = f.__func(...)
-				_callfuncs(f, Hook.FUNCTYPES.CALLBACK, ..., result)
-
-				return result
-			end
-		})
-	elseif t == 'table' then
-		f = { }
-		f.__orig = obj
-		f.__func = obj
-
-		f.__breakpoints = { }
-		f.__callbacks = { }
-		f.__onreads = { }
-		f.__onwrites = { }
-
-		setmetatable(f, {
-			__call = function(obj, ...)
-				_callfuncs(f, Hook.FUNCTYPES.BREAKPOINT, ...)
-				local result = f.__func(...)
-				_callfuncs(f, Hook.FUNCTYPES.CALLBACK, ..., result)
-
-				return result
-			end,
-
-			__index = function (...)
-				local t, k = ...
-				--print("*access to element " .. tostring(k))
-				_callfuncs(f, Hook.FUNCTYPES.ONREAD, ...)
-				return f.__orig[k]   -- access the original table
-			end,
-			
-			__newindex = function (...)
-				local t, k, v = ...
-				--print("*update of element " .. tostring(k) .." to " .. tostring(v))
-				_nv = _callfuncs(f, Hook.FUNCTYPES.ONWRITE, ...)
-				if _nv ~= nil then
-					v = _nv
-				end
-				f.__orig[k] = v   -- update original table
-			end
-		})
+			return result
+		end
 	end
+
+	if t == 'table' then
+		_metatable['__index'] = function (...)
+			local t, k = ...
+			--print("*access to element " .. tostring(k))
+			_callfuncs(f, Hook.FUNCTYPES.ONREAD, ...)
+			return f.__orig[k]   -- access the original table
+		end
+
+		_metatable['__newindex'] = function (...)
+			local t, k, v = ...
+			--print("*update of element " .. tostring(k) .." to " .. tostring(v))
+			_nv = _callfuncs(f, Hook.FUNCTYPES.ONWRITE, ...)
+			if _nv ~= nil then
+				v = _nv
+			end
+			f.__orig[k] = v   -- update original table
+		end
+	end
+
+	setmetatable(f, _metatable)
 	
 	return f
 end
 
-local function _addfunc(obj, which, func)
+local function _addfunc(obj, which, func, ephemeral)
 	if func == nil then
 		return obj
 	end
 	obj = _inithook(obj)
-	obj[which][#obj[which] + 1] = func
+
+	local _f_index = #obj[which]+1
+	local f = nil
+	if ephemeral then
+		f = function(...)
+			local _ret = func(...)
+			-- TODO pass f to this someone (the modified func)
+			obj = _clearfunc(obj, which, _f_index)
+			return _ret
+		end
+	else
+		f = func
+	end
+
+	obj[which][_f_index] = f
+	return obj
+end
+
+function _clearfunc(obj, which, func_index)
+	if obj == nil then
+		return obj
+	end
+	
+	obj[which][func_index] = nil
 	return obj
 end
 
 local function ishooked(obj)
-	for i = 1, #Hook.FUNCTYPES, 1 do
-		if (type(obj[Hook.FUNCTYPES[i]])) == 'table' then
-			return true
-		end
-	end
-
+	if type(obj) == 'table' and obj.__inithook then return true end
 	return false
 end
 
 
-function Hook.addbreakpoint(obj, func)
-	return _addfunc(obj, Hook.FUNCTYPES.BREAKPOINT, func)
+function Hook.addbreakpoint(obj, func, ephemeral)
+	return _addfunc(obj, Hook.FUNCTYPES.BREAKPOINT, func, ephemeral)
 end
 
-function Hook.addcallback(obj, func)
-	return _addfunc(obj, Hook.FUNCTYPES.CALLBACK, func)
+function Hook.addcallback(obj, func, ephemeral)
+	return _addfunc(obj, Hook.FUNCTYPES.CALLBACK, func, ephemeral)
 end
 
-function Hook.addonread(obj, func)
-	return _addfunc(obj, Hook.FUNCTYPES.ONREAD, func)
+function Hook.addonread(obj, func, ephemeral)
+	return _addfunc(obj, Hook.FUNCTYPES.ONREAD, func, ephemeral)
 end
 
-function Hook.addonwrite(obj, func)
-	return _addfunc(obj, Hook.FUNCTYPES.ONWRITE, func)
+function Hook.addonwrite(obj, func, ephemeral)
+	return _addfunc(obj, Hook.FUNCTYPES.ONWRITE, func, ephemeral)
 end
 
 function Hook.clear(obj)
@@ -127,15 +130,7 @@ function Hook.clear(obj)
 		end
 	end
 
-	if type(obj) == 'function' then
-		return obj.__func
-	end
-
-	if type(obj) == 'table' then
-		return obj.__orig
-	end
-	
-	return obj
+	return obj.__orig
 end
 
 return Hook

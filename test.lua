@@ -1,32 +1,24 @@
 local Hook = require "hook"
 
 function testfunc(...)
-    local _args, _ret = ...
-    print(_args)
-    print(_args.node)
-    print(_ret)
+    print('hello')
 end
 
-local f = function() return true end
+local a = 123
+local b = 456
+
+local f = function() print("f") end
 local testtable = {}
 
---G.GAME.round_resets.blind_states
-G = {
-    GAME = {
-        round_resets = {
-            blind_resets = "123"
-        }
-    }
-}
+f = Hook.addcallback(f, testfunc, true)
+f = Hook.addbreakpoint(f, function()
+    print('break')
+end)
 
-f = Hook.addcallback(f, testfunc)
+f()
+f()
 
+f = Hook.clear(f)
 
-f({node = 'test'})
---G.GAME.round_resets = Hook.addonread(G.GAME.round_resets, testfunc)
---G.GAME.round_resets = Hook.addonread(G.GAME.round_resets, testfunc)
-
-
---a = G.GAME.round_resets['test']
---b = G.GAME.round_resets.blind_resets
---test = G.GAME.round_resets.blind_resets
+f()
+print(type(f))

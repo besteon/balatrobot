@@ -463,10 +463,33 @@ local function c_initgamehooks()
     end)
 end
 
+Middleware.actions_pending = { }
+--table.insert(tb, 1, elem)
+--table.remove(tb, 1)
+
+local function c_gameupdate()
+
+    if #Middleware.actions_pending > 0 then
+        local _head = Middleware.actions_pending[1]
+
+        if _head.canprocess() then
+            _head = table.remove(Middleware.actions_pending, 1)
+            _head.process()
+        end
+    end
+
+end
+
+function Middleware.addaction(action)
+    table.insert(Middleware.actions_pending, action)
+end
+
 function Middleware.hookbalatro()
     -- Start game from main menu
     G.main_menu = Hook.addcallback(G.main_menu, c_onmainmenu)
     G.start_run = Hook.addcallback(G.start_run, c_initgamehooks)
+
+    --G.update = Hook.addcallback(G.update, c_gameupdate)
 end
 
 return Middleware
