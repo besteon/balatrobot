@@ -10,14 +10,14 @@ Hook.FUNCTYPES = {
 }
 
 local function _callfuncs(obj, which, ...)
-	local _result = nil
+	local _result = {...}
 
 	for i = 1, #obj[which], 1 do
-		_result = {obj[which][i](...)}
+		_result = {obj[which][i](unpack(_result))}
+	end
 
-		if _result ~= nil and #_result > 0 then
-			return unpack(_result)
-		end
+	if _result ~= nil and #_result > 0 then
+		return unpack(_result)
 	end
 end
 
@@ -39,24 +39,39 @@ local function _inithook(obj)
 
 	if typ == 'function' then
 		_metatable['__call'] = function(obj, ...)
-			_callfuncs(hook, Hook.FUNCTYPES.BREAKPOINT, ...)
-			local result = hook.__orig(...)
-			_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, ..., result)
+			-- Call the breakpoints with original arguments
+			local _r1 = {_callfuncs(hook, Hook.FUNCTYPES.BREAKPOINT, ...)}
 
-			return result
+			-- Call the original function with arguments modified by breakpoints OR
+			-- with the original arguments if no modifications were made (no returns)
+			local _r2 = (_r1 and #_r1 > 0 and {hook.__orig(unpack(_r1))}) or {hook.__orig(...)}
+			
+			-- Call the callbacks with the return value of the original function OR
+			-- with the original arguments if original function returned null
+			local _r3 = (_r2 and #_r2 > 0 and {_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, unpack(_r2))}) or {_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, ...)}
+
+			-- The final return value is the return value of the callbacks OR
+			-- the return value of the original function if null
+			return (_r3 ~= nil and #_r3 > 0 and unpack(_r3)) or unpack(_r2)
 		end
 	end
 
 	if typ == 'table' then
 		_metatable['__index'] = function (...)
 			local _t, _k = ...
-			_callfuncs(hook, Hook.FUNCTYPES.ONREAD, ...)
-			return hook.__orig[_k]
+			local _r = _callfuncs(hook, Hook.FUNCTYPES.ONREAD, ...)
+			return (_r ~= nil and hook.__orig[_r]) or hook.__orig[_k]
 		end
 
 		_metatable['__newindex'] = function (...)
 			local _t, _k, _v = ...
-			_v = _callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...) or _v
+			local _r = {_callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...)}
+			local _k1, _v1 = nil, nil
+			if _r ~= nil and #_r > 0 then
+				_k1, _v1 = unpack(_r)
+				_k = _k1 or _k
+				_v = _v1 or _v
+			end
 			hook.__orig[_k] = _v
 		end
 	end

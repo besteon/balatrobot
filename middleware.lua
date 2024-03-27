@@ -485,11 +485,12 @@ function Middleware.addaction(action)
 end
 
 function Middleware.hookbalatro()
+
     -- Start game from main menu
     G.main_menu = Hook.addcallback(G.main_menu, c_onmainmenu)
     G.start_run = Hook.addcallback(G.start_run, c_initgamehooks)
 
-    G.update = Hook.addcallback(G.update, c_gameupdate)
+    --G.update = Hook.addcallback(G.update, c_gameupdate)
 end
 
 return Middleware

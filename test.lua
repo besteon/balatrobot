@@ -1,44 +1,47 @@
 local Hook = require "hook"
 
-function testfunc(...)
-    print('hello')
+local f = function(arg)
+    return arg
 end
 
-local a = 123
-local b = 456
-
-local f = function() print("f") end
-local testtable = {}
-
-f = Hook.addcallback(f, testfunc, true)
-f = Hook.addbreakpoint(f, function()
-    print('break')
+f = Hook.addbreakpoint(f, function(arg)
+    print('breakpoint')
+    print(arg)
+    return 456
 end)
 
-f()
-f()
+f = Hook.addcallback(f, function(arg)
+    print('callback')
+    print(arg)
+    return 777
+end)
 
-f = Hook.clear(f)
+a = f('test')
 
-f()
-print(type(f))
+print(a)
 
-print("=====================")
+print("==================")
 
-local c = 12345
+local b = { }
+b[1] = "abc"
+b[2] = "def"
+b[3] = "xyz"
 
-local X = { }
+local x = function(...)
+    print('onread')
+    local _t, _k = ...
+    --return 2
+end
 
-X.__orig = c
+local y = function(...)
+    local _t, _k, _v = ...
+    return 3, "testing"
+end
 
-local _metatable = {
-    __eq = function (a, b)
-        print('in eq')
-        if type(a) == 'table' then return a.__orig == b
-        else return b.__orig == a end
-    end
-}
+b = Hook.addonwrite(b, y)
+b = Hook.addonread(b, x)
 
-setmetatable(X, _metatable)
-
-print({12345} == X)
+b[1] = "asdf"
+print(b[1])
+print(b[2])
+print(b[3])
