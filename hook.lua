@@ -59,12 +59,14 @@ local function _inithook(obj)
 	if typ == 'table' then
 		_metatable['__index'] = function (...)
 			local _t, _k = ...
+			-- Optionally return a new key to read from
 			local _r = _callfuncs(hook, Hook.FUNCTYPES.ONREAD, ...)
 			return (_r ~= nil and hook.__orig[_r]) or hook.__orig[_k]
 		end
 
 		_metatable['__newindex'] = function (...)
 			local _t, _k, _v = ...
+			-- Optionally return a new key and value to write
 			local _r = {_callfuncs(hook, Hook.FUNCTYPES.ONWRITE, ...)}
 			local _k1, _v1 = nil, nil
 			if _r ~= nil and #_r > 0 then
