@@ -21,9 +21,10 @@ function Middleware.add_event_sequence_recursive(events)
     if events == nil or #events <= 0 then
         return true
     end
+    
     local head = table.remove(events, 1)
 
-    G.E_MANAGER:add_event(Event({
+    local _event = Event({
         trigger = 'after',
         delay = head.delay,
         blocking = false,
@@ -32,27 +33,80 @@ function Middleware.add_event_sequence_recursive(events)
             Middleware.add_event_sequence_recursive(events)
             return true
         end
-    }))
+    })
+    G.E_MANAGER:add_event(_event)
 end
 
-local function pushbutton(button)
-    if button and button.config and button.config.button then
-        G.E_MANAGER:add_event(Event({
+function Middleware.add_event_sequence(events)
+
+    local _lastevent = nil
+    local _totaldelay = 0.0
+
+    for k, event in pairs(events) do
+        _totaldelay = _totaldelay + event.delay + Bot.SETTINGS.action_delay
+
+        local _event = Event({
             trigger = 'after',
-            delay = Bot.SETTINGS.action_delay,
+            delay = _totaldelay,
             blocking = false,
             func = function()
-                G.FUNCS[button.config.button](button)
+                event.func(event.args)
                 return true
             end
-        }))
+        })
+        G.E_MANAGER:add_event(_event)
+        _lastevent = _event
+    end
+
+    return _lastevent
+end
+
+Middleware.queuedactions = { }
+Middleware.currentaction = nil
+
+local function queueaction(func)
+
+    --table.insert(Middleware.queuedactions, #Middleware.queuedactions + 1, func)
+
+    if Middleware.currentaction and not Middleware.currentaction.complete then
+        sendDebugMessage("Current action in progress, adding action hook")
+        Middleware.currentaction.func = Hook.addcallback(Middleware.currentaction.func, function()
+            local _e = Middleware.add_event_sequence({
+                { func = func, delay = 0.0}
+            })
+            Middleware.currentaction = _e
+        end)
+    else
+        sendDebugMessage("No current action. Adding new action.")
+        local _e = Middleware.add_event_sequence({
+            { func = func, delay = 0.0}
+        })
+        Middleware.currentaction = _e
     end
 end
 
+local function pushbutton(button)
+
+    queueaction(function()
+        if button and button.config and button.config.button then
+            G.FUNCS[button.config.button](button)
+        end
+    end)
+
+end
+
+local function clickcard(card)
+
+    queueaction(function()
+        if card and card.click then
+            card:click()
+        end
+    end)
+
+end
 
 Middleware.is_opening_booster = false
 Middleware.prev_gamestate = -1
-
 
 Middleware.BUTTONS = {
     -- Main Menu Buttons
@@ -307,14 +361,14 @@ local function c_shop()
     elseif _action == Bot.CHOICES.REROLL_SHOP then
         pushbutton(Middleware.BUTTONS.REROLL)
     elseif _action == Bot.CHOICES.BUY_CARD or _action == Bot.CHOICES.BUY_VOUCHER or  _action == Bot.CHOICES.BUY_BOOSTER then
-        _card:click()
+        clickcard(_card)
 
         local _use_button = _card.children.use_button
         local _buy_button= _card.children.buy_button
         if _use_button then
-            G.FUNCS[_use_button.definition.config.button](_use_button.definition)
+            pushbutton(_use_button.definition)
         elseif _buy_button then
-            G.FUNCS[_buy_button.definition.config.button](_buy_button.definition)
+            pushbutton(_buy_button.definition)
         end
     end
 
