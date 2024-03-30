@@ -2,6 +2,9 @@
 --local Hook = require "hook"
 --local Bot = require "bot"
 
+Middleware = { }
+
+
 function random_key(tb)
     local keys = {}
     for k in pairs(tb) do table.insert(keys, k) end
@@ -13,14 +16,6 @@ function random_element(tb)
     for k in pairs(tb) do table.insert(keys, k) end
     return tb[keys[math.random(#keys)]]
 end
-
-Middleware = { }
-
-Middleware.action_pending = false
-
-Middleware.can_reroll_shop = false
-Middleware.is_opening_booster = false
-Middleware.is_game_over = false
 
 function Middleware.add_event_sequence_recursive(events)
     if events == nil or #events <= 0 then
@@ -40,23 +35,81 @@ function Middleware.add_event_sequence_recursive(events)
     }))
 end
 
-function Middleware.add_event_sequence(events)
-    if Middleware.action_pending == false then
-        Middleware.action_pending = true
-
-        local _totaldelay = 0
-        for i = 1, #events, 1 do
-            _totaldelay = _totaldelay + events[i].delay
-        end
-
-        Middleware.add_event_sequence_recursive(events)
+local function pushbutton(button)
+    if button and button.config and button.config.button then
         G.E_MANAGER:add_event(Event({
-            trigger = 'immediate',
+            trigger = 'after',
+            delay = Bot.SETTINGS.action_delay,
+            blocking = false,
             func = function()
-                Middleware.action_pending = false
+                G.FUNCS[button.config.button](button)
                 return true
             end
         }))
+    end
+end
+
+
+Middleware.is_opening_booster = false
+Middleware.prev_gamestate = -1
+
+
+Middleware.BUTTONS = {
+    -- Main Menu Buttons
+    --MAIN_MENU_PLAY = nil,
+
+    -- Start Run Buttons
+    --START_RUN_PLAY = nil,
+
+    -- Blind Phase Buttons
+    SMALLBLIND_SELECT = nil,
+    BIGBLIND_SELECT = nil,
+    BOSSBLIND_SELECT = nil,
+    SMALLBLIND_SKIP = nil,
+    BIGBLND_SKIP = nil,
+    --BOSS_REROLL = nil,
+
+    -- Play Phase Buttons
+    --PLAY_HAND = nil,
+    --DISCARD_HAND = nil,
+    CASH_OUT = nil,
+
+    -- Shop Phase Buttons
+    NEXT_ROUND = nil,
+    REROLL = nil,
+
+    -- Pack Phase Buttons
+    --SKIP_PACK = nil,
+
+    -- Game Over Buttons
+    --GAME_OVER_MAIN_MENU = nil,
+}
+
+Middleware.firewhenready = { }
+
+local function firewhenready(condition, func)
+    for i = 1, #Middleware.firewhenready, 1 do
+        if Middleware.firewhenready[i] == nil then
+            Middleware.firewhenready[i] = {
+                ready = condition,
+                fire = func
+            }
+            return nil
+        end
+    end
+
+    Middleware.firewhenready[#Middleware.firewhenready + 1] = {
+        ready = condition,
+        fire = func
+    }
+end
+
+local function c_update()
+    for i = 1, #Middleware.firewhenready, 1 do
+        if Middleware.firewhenready[i] and Middleware.firewhenready[i].ready() then
+            Middleware.firewhenready[i].fire()
+            Middleware.firewhenready[i] = nil
+        end
     end
 end
 
@@ -78,55 +131,10 @@ local function c_onmainmenu()
         return true        
     end
 
-    Middleware.is_game_over = false
-
-    Middleware.add_event_sequence({
+    Middleware.add_event_sequence_recursive({
         { func = click_main_play_button, delay = 3.0 },
         { func = click_run_play_button, delay = 1.0 }
     })
-end
-
-
-local function c_onblindselectavailable(blind)
-
-    local function click_select_blind()
-
-        local _button_index = blind == 'Small' and 1 or blind == 'Big' and 2 or blind == 'Boss' and 3
-        local _select_button = G.blind_select.UIRoot.children[1].children[_button_index].config.object:get_UIE_by_ID('select_blind_button')
-        if _select_button ~= nil and _select_button.config.button ~= nil then
-            G.FUNCS[_select_button.config.button](_select_button)
-        end
-    end
-    
-    local function click_skip_blind_select_voucher()
-        local _tag_blind_skip_button = UIBox:get_UIE_by_ID('tag_'..G.GAME.blind_on_deck, G.blind_select.UIRoot).children[2]
-        G.FUNCS[_tag_blind_skip_button.config.button](_tag_blind_skip_button)
-    end
-
-
-    -- OPTIONS -- Make decision logic here
-    local function decide(blind)
-
-        local _choice = Bot.skip_or_select_blind(blind)
-
-        -- 1) Select Blind (play)
-        if _choice == Bot.CHOICES.SELECT_BLIND then
-            Middleware.add_event_sequence_recursive({
-                { func = click_select_blind, delay = 2.0 }
-            })
-        end
-
-        -- 2) Skip Blind (tag)
-        if _choice == Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER then
-            Middleware.add_event_sequence_recursive({
-                { func = click_skip_blind_select_voucher, delay = 2.0 }
-            })
-        end
-
-    end
-
-    decide(blind)
-
 end
 
 local function c_can_play_hand()
@@ -174,105 +182,6 @@ local function c_can_play_hand()
         end
 
         Middleware.add_event_sequence_recursive(_events)
-
-    end
-
-    decide()
-
-end
-
-local function c_can_cash_out()
-
-    local function cash_out()
-        e = {
-            config = {
-                button = nil
-            }
-        }
-        G.FUNCS.cash_out(e)
-    end
-
-    Middleware.add_event_sequence_recursive({
-        { func = cash_out, delay = 1.0 }
-    })  
-end
-
-local function c_can_shop()
-
-    local function click_next_round()
-        G.FUNCS.toggle_shop()
-    end
-
-    local function click_reroll()
-        G.FUNCS.reroll_shop()
-    end
-
-    local function decide()
-        local _done_shopping = false
-
-        local _b_can_round_end_shop = true
-        local _b_can_reroll_shop = Middleware.can_reroll_shop
-
-        local _cards_to_buy = { }
-        for i = 1, #G.shop_jokers.cards, 1 do
-            _cards_to_buy[i] = G.shop_jokers.cards[i].cost <= G.GAME.dollars and G.shop_jokers.cards[i] or nil
-        end
-
-        local _vouchers_to_buy = { }
-        for i = 1, #G.shop_vouchers.cards, 1 do
-            _vouchers_to_buy[i] = G.shop_vouchers.cards[i].cost <= G.GAME.dollars and G.shop_vouchers.cards[i] or nil
-        end
-
-        local _boosters_to_buy = { }
-        for i = 1, #G.shop_booster.cards, 1 do
-            _boosters_to_buy[i] = G.shop_booster.cards[i].cost <= G.GAME.dollars and G.shop_booster.cards[i] or nil
-        end
-
-        local _choices = { }
-        _choices[Bot.CHOICES.NEXT_ROUND_END_SHOP] = _b_can_round_end_shop
-        _choices[Bot.CHOICES.REROLL_SHOP] = _b_can_reroll_shop
-        _choices[Bot.CHOICES.BUY_CARD] = #_cards_to_buy > 0 and _cards_to_buy or nil
-        _choices[Bot.CHOICES.BUY_VOUCHER] = #_vouchers_to_buy > 0 and _vouchers_to_buy or nil
-        _choices[Bot.CHOICES.BUY_BOOSTER] = #_boosters_to_buy > 0 and _boosters_to_buy or nil
-        
-        local _action, _card = Bot.select_shop_action(_choices)
-
-        if _action == Bot.CHOICES.NEXT_ROUND_END_SHOP then
-            Middleware.add_event_sequence_recursive({
-                { func = click_next_round, delay = 1.0 }
-            }) 
-            _done_shopping = true
-        elseif _action == Bot.CHOICES.REROLL_SHOP then
-            Middleware.add_event_sequence_recursive({
-                { func = click_reroll, delay = 1.0 }
-            })         
-        elseif _action == Bot.CHOICES.BUY_CARD or _action == Bot.CHOICES.BUY_VOUCHER or  _action == Bot.CHOICES.BUY_BOOSTER then
-            Middleware.add_event_sequence_recursive({
-                { func = function()
-                    if not _card then return end
-                    _card:click()
-                end, delay = 2.0 },
-                {
-                    func = function()
-                        if not _card then return end
-
-                        local _use_button = _card.children.use_button
-                        local _buy_button= _card.children.buy_button
-                        if _use_button then
-                            G.FUNCS[_use_button.definition.config.button](_use_button.definition)
-                        elseif _buy_button then
-                            G.FUNCS[_buy_button.definition.config.button](_buy_button.definition)
-                        end
-                    end, delay = 1.0
-                }
-            }) 
-        end
-
-        if not _done_shopping then
-            Middleware.add_event_sequence_recursive({
-                { func = decide, delay = 10.0 }
-            })
-        end
 
     end
 
@@ -361,12 +270,140 @@ local function c_can_choose_booster_cards(skip_button)
 end
 
 
+local function c_shop()
+
+    local _done_shopping = false
+
+    local _b_can_round_end_shop = true
+    local _b_can_reroll_shop = Middleware.BUTTONS.REROLL and Middleware.BUTTONS.REROLL.config and Middleware.BUTTONS.REROLL.config.button
+
+    local _cards_to_buy = { }
+    for i = 1, #G.shop_jokers.cards, 1 do
+        _cards_to_buy[i] = G.shop_jokers.cards[i].cost <= G.GAME.dollars and G.shop_jokers.cards[i] or nil
+    end
+
+    local _vouchers_to_buy = { }
+    for i = 1, #G.shop_vouchers.cards, 1 do
+        _vouchers_to_buy[i] = G.shop_vouchers.cards[i].cost <= G.GAME.dollars and G.shop_vouchers.cards[i] or nil
+    end
+
+    local _boosters_to_buy = { }
+    for i = 1, #G.shop_booster.cards, 1 do
+        _boosters_to_buy[i] = G.shop_booster.cards[i].cost <= G.GAME.dollars and G.shop_booster.cards[i] or nil
+    end
+
+    local _choices = { }
+    _choices[Bot.CHOICES.NEXT_ROUND_END_SHOP] = _b_can_round_end_shop
+    _choices[Bot.CHOICES.REROLL_SHOP] = _b_can_reroll_shop
+    _choices[Bot.CHOICES.BUY_CARD] = #_cards_to_buy > 0 and _cards_to_buy or nil
+    _choices[Bot.CHOICES.BUY_VOUCHER] = #_vouchers_to_buy > 0 and _vouchers_to_buy or nil
+    _choices[Bot.CHOICES.BUY_BOOSTER] = #_boosters_to_buy > 0 and _boosters_to_buy or nil
+    
+    local _action, _card = Bot.select_shop_action(_choices)
+
+    if _action == Bot.CHOICES.NEXT_ROUND_END_SHOP then
+        pushbutton(Middleware.BUTTONS.NEXT_ROUND)
+        _done_shopping = true
+    elseif _action == Bot.CHOICES.REROLL_SHOP then
+        pushbutton(Middleware.BUTTONS.REROLL)
+    elseif _action == Bot.CHOICES.BUY_CARD or _action == Bot.CHOICES.BUY_VOUCHER or  _action == Bot.CHOICES.BUY_BOOSTER then
+        _card:click()
+
+        local _use_button = _card.children.use_button
+        local _buy_button= _card.children.buy_button
+        if _use_button then
+            G.FUNCS[_use_button.definition.config.button](_use_button.definition)
+        elseif _buy_button then
+            G.FUNCS[_buy_button.definition.config.button](_buy_button.definition)
+        end
+    end
+
+    if not _done_shopping then
+        firewhenready(function()
+            return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
+        end, c_shop)
+    end
+end
+
+
 local function c_can_rearrange_jokers()
     Bot.rearrange_jokers()
 end
 
 local function c_can_rearrange_hand()
     Bot.rearrange_hand()
+end
+
+local function c_start_play_hand()
+    Middleware.add_event_sequence_recursive({
+        { func = c_can_rearrange_jokers, delay = 2.0 },
+        { func = c_can_rearrange_hand, delay = 2.0 },
+        { func = c_can_play_hand, delay = 2.0 }
+    })
+end
+
+local function c_select_blind()
+
+    local _blind_on_deck = G.GAME.blind_on_deck
+
+    if _blind_on_deck == 'Boss' then
+        pushbutton(Middleware.BUTTONS.BOSSBLIND_SELECT)
+        return
+    end
+
+    local _choice = Bot.skip_or_select_blind(_blind_on_deck)
+
+    local _button = nil
+    if _choice == Bot.CHOICES.SELECT_BLIND then
+        if _blind_on_deck == 'Small' then
+            _button = Middleware.BUTTONS.SMALLBLIND_SELECT
+        elseif _blind_on_deck == 'Big' then
+            _button = Middleware.BUTTONS.BIGBLIND_SELECT
+        end
+    elseif _choice == Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER then
+        if _blind_on_deck == 'Small' then
+            _button = Middleware.BUTTONS.SMALLBLIND_SKIP
+        elseif _blind_on_deck == 'Big' then
+            _button = Middleware.BUTTONS.BIGBLIND_SKIP
+        end
+    end
+
+    pushbutton(_button)
+end
+
+
+local function set_blind_select_buttons()
+    local _blind_on_deck = G.GAME.blind_on_deck
+
+    local _blind_obj = G.blind_select_opts[string.lower(_blind_on_deck)]
+    local _select_button = _blind_obj:get_UIE_by_ID('select_blind_button')
+
+    -- TODO fix going to next blind when previous blind select opens a pack
+    _select_button.config = Hook.addonwrite(_select_button.config, function(...)
+        local _t, _k, _v = ...
+        if _k == 'button' and _v ~= nil then
+            Middleware.can_select_blind = true
+        end
+    end)
+
+    if _select_button.config.button then
+        Middleware.can_select_blind = true
+    end
+
+    if _blind_on_deck == 'Boss' then
+        Middleware.BUTTONS.BOSSBLIND_SELECT = _select_button
+        return
+    end
+
+    local _skip_button = _blind_obj:get_UIE_by_ID('tag_'.._blind_on_deck).children[2]
+
+    if _blind_on_deck == 'Small' then
+        Middleware.BUTTONS.SMALLBLIND_SELECT = _select_button
+        Middleware.BUTTONS.SMALLBLIND_SKIP = _skip_button
+    elseif _blind_on_deck == 'Big' then
+        Middleware.BUTTONS.BIGBLIND_SELECT = _select_button
+        Middleware.BUTTONS.BIGBLIND_SKIP = _skip_button
+    end
 end
 
 
@@ -378,34 +415,38 @@ local function c_initgamehooks()
         }
     }
 
-    -- Blind selection
-    local _prev_blind_state = nil
-    G.GAME.round_resets.blind_states = Hook.addonwrite(G.GAME.round_resets.blind_states, function(...)
-        local t,k,v = ...
-        if k ~= _prev_blind_state and v == 'Select' then
-            c_onblindselectavailable(k)
-            _prev_blind_state = k
-        end
-    end)
-
     -- Detect when hand has been drawn
     G.GAME.blind.drawn_to_hand = Hook.addcallback(G.GAME.blind.drawn_to_hand, function(...)
-        Middleware.add_event_sequence_recursive({
-            { func = c_can_rearrange_jokers, delay = 2.0 },
-            { func = c_can_rearrange_hand, delay = 2.0 },
-            { func = c_can_play_hand, delay = 2.0 }
-        })
+        --Middleware.add_event_sequence_recursive({
+         --   { func = c_can_rearrange_jokers, delay = 2.0 },
+         --   { func = c_can_rearrange_hand, delay = 2.0 },
+         --   { func = c_can_play_hand, delay = 2.0 }
+       -- })
+       return nil
     end)
 
-    -- Cash out
-    G.FUNCS.evaluate_round = Hook.addcallback(G.FUNCS.evaluate_round, c_can_cash_out)
-
-    -- Hook shop
+    -- Hook button snaps
     G.CONTROLLER.snap_to = Hook.addcallback(G.CONTROLLER.snap_to, function(...)
         local _self = ...
-        if G.shop ~= nil then
-            if _self.snap_cursor_to.node == G.shop:get_UIE_by_ID('next_round_button') then
-                c_can_shop()
+
+        if _self and _self.snap_cursor_to.node and _self.snap_cursor_to.node.config and _self.snap_cursor_to.node.config.button then
+            sendDebugMessage("SNAPTO: ".._self.snap_cursor_to.node.config.button)
+
+            local _button = _self.snap_cursor_to.node
+            local _buttonfunc = _self.snap_cursor_to.node.config.button
+
+            if _buttonfunc == 'select_blind' and G.STATE == G.STATES.BLIND_SELECT then
+                set_blind_select_buttons()
+                c_select_blind()
+            elseif _buttonfunc == 'cash_out' then
+                Middleware.BUTTONS.CASH_OUT = _button
+                pushbutton(Middleware.BUTTONS.CASH_OUT)
+            elseif _buttonfunc == 'toggle_shop' and G.shop ~= nil then
+                Middleware.BUTTONS.NEXT_ROUND = _button
+
+                firewhenready(function()
+                    return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
+                end, c_shop)
             end
         end
     end)
@@ -413,11 +454,7 @@ local function c_initgamehooks()
     -- Set reroll availability
     G.FUNCS.can_reroll = Hook.addcallback(G.FUNCS.can_reroll, function(...)
         local _e = ...
-        if _e.config.button == 'reroll_shop' then
-            Middleware.can_reroll_shop = true
-        else
-            Middleware.can_reroll_shop = false
-        end
+        Middleware.BUTTONS.REROLL = _e
     end)
 
     -- Booster pack opening
@@ -441,56 +478,37 @@ local function c_initgamehooks()
                 else
                     c_can_choose_booster_cards(_e)
                 end
-
             end
         end
     end)
-
-    -- Game Over
-    G.update_game_over = Hook.addcallback(G.update_game_over, function(...)
-        if not Middleware.is_game_over then
-            Middleware.is_game_over = true
-            Middleware.add_event_sequence_recursive({
-                { func = function(...)
-                    --local _main_menu_button = G.OVERLAY_MENU:get_UIE_by_ID('from_game_over')
-                    --G.FUNCS[_main_menu_button.config.button](_main_menu_button)
-                    --G.FUNCS.go_to_menu()
-                    G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = Bot.SETTINGS.challenge})
-                    G.FUNCS.exit_overlay_menu()
-                end, delay = 10.0 }
-            })
-        end
-    end)
 end
 
-Middleware.actions_pending = { }
---table.insert(tb, 1, elem)
---table.remove(tb, 1)
 
-local function c_gameupdate()
+Middleware.STATEFUNCS = { }
+Middleware.STATEFUNCS[G.STATES.MENU] = c_onmainmenu
 
-    if #Middleware.actions_pending > 0 then
-        local _head = Middleware.actions_pending[1]
+local function w_gamestate(...)
+    local _t, _k, _v = ...
 
-        if _head.canprocess() then
-            _head = table.remove(Middleware.actions_pending, 1)
-            _head.process()
+    if _k == 'STATE' then
+        if Middleware.STATEFUNCS[_v] then
+            Middleware.STATEFUNCS[_v]()
         end
+
+        Middleware.prev_gamestate = _v
     end
-
 end
 
-function Middleware.addaction(action)
-    table.insert(Middleware.actions_pending, action)
-end
+
+
 
 function Middleware.hookbalatro()
 
     -- Start game from main menu
-    G.main_menu = Hook.addcallback(G.main_menu, c_onmainmenu)
     G.start_run = Hook.addcallback(G.start_run, c_initgamehooks)
+    G = Hook.addonwrite(G, w_gamestate)
+    G.update = Hook.addcallback(G.update, c_update)
 
-    --G.update = Hook.addcallback(G.update, c_gameupdate)
 end
 
 return Middleware

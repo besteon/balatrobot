@@ -92,7 +92,9 @@ local function _addfunc(obj, which, func, ephemeral)
 	obj[which][_f_index] = ephemeral and
 		function(...)
 			local _ret = func(...)
-			obj = _clearfunc(obj, which, _f_index)
+			if _ret == nil or _ret == true then
+				obj = _clearfunc(obj, which, _f_index)
+			end
 			return _ret
 		end or func
 
