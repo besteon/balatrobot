@@ -4,7 +4,8 @@ Bot = { }
 Bot.SETTINGS = {
     stake = 2,
     seed = nil,
-    challenge = nil
+    challenge = nil,
+    action_delay = 1.0
 }
 
 Bot.CHOICES = {
@@ -23,19 +24,11 @@ Bot.CHOICES = {
 
 -- Options: Small, Big, Boss
 function Bot.skip_or_select_blind(blind)
-
     if blind == 'Small' or blind == 'Big' then
-        local _choice = math.random(2)
-        if _choice == 1 then
-            return Bot.CHOICES.SELECT_BLIND
-        else
-            return Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
-        end
-    elseif blind == 'Boss' then
         return Bot.CHOICES.SELECT_BLIND
     end
 
-    return Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
+    return Bot.CHOICES.SELECT_BLIND
 end
 
 -- Return PLAY_HAND or DISCARD_HAND, hand card indices
@@ -66,22 +59,8 @@ end
 -- ex. return Bot.CHOICES.BUY_CARD, choices[Bot.CHOICES.BUY_CARD][1]
 function Bot.select_shop_action(choices)
 
-    local _choice = random_key(choices)
-
-    if _choice == Bot.CHOICES.BUY_CARD then
-        return _choice, choices[_choice][math.random(#choices[_choice])]
-    end
-
-    if _choice == Bot.CHOICES.BUY_BOOSTER then
-        return _choice, choices[_choice][math.random(#choices[_choice])]
-    end
-
-    if _choice == Bot.CHOICES.BUY_VOUCHER then
-        return _choice, choices[_choice][math.random(#choices[_choice])]
-    end
-
-    if _choice == Bot.CHOICES.REROLL_SHOP then
-        return _choice
+    if choices[Bot.CHOICES.BUY_CARD] then
+        return Bot.CHOICES.BUY_CARD, choices[Bot.CHOICES.BUY_CARD][1]
     end
 
     return Bot.CHOICES.NEXT_ROUND_END_SHOP

@@ -61,28 +61,11 @@ function Middleware.add_event_sequence(events)
     return _lastevent
 end
 
-Middleware.queuedactions = { }
+Middleware.queuedactions = List.new()
 Middleware.currentaction = nil
 
 local function queueaction(func)
-
-    --table.insert(Middleware.queuedactions, #Middleware.queuedactions + 1, func)
-
-    if Middleware.currentaction and not Middleware.currentaction.complete then
-        sendDebugMessage("Current action in progress, adding action hook")
-        Middleware.currentaction.func = Hook.addcallback(Middleware.currentaction.func, function()
-            local _e = Middleware.add_event_sequence({
-                { func = func, delay = 0.0}
-            })
-            Middleware.currentaction = _e
-        end)
-    else
-        sendDebugMessage("No current action. Adding new action.")
-        local _e = Middleware.add_event_sequence({
-            { func = func, delay = 0.0}
-        })
-        Middleware.currentaction = _e
-    end
+    List.pushleft(Middleware.queuedactions, func)
 end
 
 local function pushbutton(button)
@@ -159,6 +142,19 @@ local function firewhenready(condition, func)
 end
 
 local function c_update()
+
+    if not List.isempty(Middleware.queuedactions) and
+        (not Middleware.currentaction or 
+            (Middleware.currentaction and Middleware.currentaction.complete)) then
+
+        local _func = List.popright(Middleware.queuedactions)
+
+        local _e = Middleware.add_event_sequence({
+            { func = _func, delay = 0.0}
+        })
+        Middleware.currentaction = _e
+    end
+
     for i = 1, #Middleware.firewhenready, 1 do
         if Middleware.firewhenready[i] and Middleware.firewhenready[i].ready() then
             Middleware.firewhenready[i].fire()
@@ -326,6 +322,7 @@ end
 
 local function c_shop()
 
+    sendDebugMessage("shop")
     local _done_shopping = false
 
     local _b_can_round_end_shop = true
@@ -335,6 +332,8 @@ local function c_shop()
     for i = 1, #G.shop_jokers.cards, 1 do
         _cards_to_buy[i] = G.shop_jokers.cards[i].cost <= G.GAME.dollars and G.shop_jokers.cards[i] or nil
     end
+    sendDebugMessage(tostring(#_cards_to_buy))
+
 
     local _vouchers_to_buy = { }
     for i = 1, #G.shop_vouchers.cards, 1 do
@@ -373,9 +372,7 @@ local function c_shop()
     end
 
     if not _done_shopping then
-        firewhenready(function()
-            return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
-        end, c_shop)
+        queueaction(c_shop)
     end
 end
 
@@ -498,6 +495,7 @@ local function c_initgamehooks()
             elseif _buttonfunc == 'toggle_shop' and G.shop ~= nil then
                 Middleware.BUTTONS.NEXT_ROUND = _button
 
+                sendDebugMessage('snapto toggle_shop')
                 firewhenready(function()
                     return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
                 end, c_shop)
