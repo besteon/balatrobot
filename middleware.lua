@@ -4,7 +4,6 @@
 
 Middleware = { }
 
-
 function random_key(tb)
     local keys = {}
     for k in pairs(tb) do table.insert(keys, k) end
@@ -43,7 +42,7 @@ function Middleware.add_event_sequence(events)
     local _totaldelay = 0.0
 
     for k, event in pairs(events) do
-        _totaldelay = _totaldelay + event.delay + Bot.SETTINGS.action_delay
+        _totaldelay = _totaldelay + event.delay
 
         local _event = Event({
             trigger = 'after',
@@ -64,31 +63,78 @@ end
 Middleware.queuedactions = List.new()
 Middleware.currentaction = nil
 
-local function queueaction(func)
-    List.pushleft(Middleware.queuedactions, func)
+Middleware.firewhenready = { }
+
+local function firewhenready(condition, func)
+    for i = 1, #Middleware.firewhenready, 1 do
+        if Middleware.firewhenready[i] == nil then
+            Middleware.firewhenready[i] = {
+                ready = condition,
+                fire = func
+            }
+            return nil
+        end
+    end
+
+    Middleware.firewhenready[#Middleware.firewhenready + 1] = {
+        ready = condition,
+        fire = func
+    }
 end
 
-local function pushbutton(button)
+local function queueaction(func, delay)
 
+    if not delay then
+        delay = Bot.SETTINGS.action_delay
+    end
+
+    List.pushleft(Middleware.queuedactions, { func = func, delay = delay })
+end
+
+local function pushbutton(button, delay)
     queueaction(function()
         if button and button.config and button.config.button then
             G.FUNCS[button.config.button](button)
         end
-    end)
-
+    end, delay)
 end
 
-local function clickcard(card)
-
+local function clickcard(card, delay)
     queueaction(function()
         if card and card.click then
             card:click()
         end
-    end)
-
+    end, delay)
 end
 
-Middleware.is_opening_booster = false
+local function usecard(card, delay)
+
+    firewhenready(function()
+        if not card then return true end
+        return card.children.use_button or card.children.buy_and_use_button or card.children.buy_button or card.children.use_and_sell_button
+    end, function()
+        local _use_button = nil
+        local _use_button = card.children.use_button and card.children.use_button.definition
+        if _use_button and _use_button.config.button == nil then
+            local _node_index = card.ability.consumeable and 2 or 1
+            _use_button = _use_button.nodes[_node_index]
+        end
+        local _buy_and_use_button = card.children.buy_and_use_button and card.children.buy_and_use_button.definition
+        local _buy_button = card.children.buy_button and card.children.buy_button.definition
+        local _sell_button = card.children.use_and_sell_button and card.children.use_and_sell_button.definition
+
+        if _use_button then
+            pushbutton(_use_button, delay)
+        elseif _buy_and_use_button then
+            pushbutton(_buy_and_use_button, delay)
+        elseif _buy_button then
+            pushbutton(_buy_button, delay)
+        elseif _sell_button then
+            pushbutton(_sell_button, delay)
+        end
+    end)
+end
+
 Middleware.prev_gamestate = -1
 
 Middleware.BUTTONS = {
@@ -116,45 +162,30 @@ Middleware.BUTTONS = {
     REROLL = nil,
 
     -- Pack Phase Buttons
-    --SKIP_PACK = nil,
+    SKIP_PACK = nil,
 
     -- Game Over Buttons
     --GAME_OVER_MAIN_MENU = nil,
 }
 
-Middleware.firewhenready = { }
 
-local function firewhenready(condition, func)
-    for i = 1, #Middleware.firewhenready, 1 do
-        if Middleware.firewhenready[i] == nil then
-            Middleware.firewhenready[i] = {
-                ready = condition,
-                fire = func
-            }
-            return nil
-        end
-    end
-
-    Middleware.firewhenready[#Middleware.firewhenready + 1] = {
-        ready = condition,
-        fire = func
-    }
-end
 
 local function c_update()
 
+    -- Process the queue of Bot events
     if not List.isempty(Middleware.queuedactions) and
         (not Middleware.currentaction or 
             (Middleware.currentaction and Middleware.currentaction.complete)) then
 
-        local _func = List.popright(Middleware.queuedactions)
+        local _func_and_delay = List.popright(Middleware.queuedactions)
 
-        local _e = Middleware.add_event_sequence({
-            { func = _func, delay = 0.0}
+        local _event = Middleware.add_event_sequence({
+            { func = _func_and_delay.func, delay = _func_and_delay.delay }
         })
-        Middleware.currentaction = _e
+        Middleware.currentaction = _event
     end
 
+    -- Run functions that have been waiting for a condition to be met
     for i = 1, #Middleware.firewhenready, 1 do
         if Middleware.firewhenready[i] and Middleware.firewhenready[i].ready() then
             Middleware.firewhenready[i].fire()
@@ -239,90 +270,29 @@ local function c_can_play_hand()
 
 end
 
-local function c_can_choose_booster_cards(skip_button)
+local function c_can_choose_booster_cards()
 
-    local function click_deck_card(card)
-        card:click()
-    end
+    local _action, _card, _hand_cards = Bot.select_booster_action(G.pack_cards.cards, G.hand.cards)
 
-    local function click_skip_booster()
-        G.FUNCS[skip_button.config.button](skip_button)
-    end
+    if _action == Bot.CHOICES.SKIP_BOOSTER_PACK then
+        pushbutton(Middleware.BUTTONS.SKIP_PACK)
+    elseif _action == Bot.CHOICES.SELECT_BOOSTER_CARD then
 
-    local function decide()
-
-        local _action, _card, _hand_cards = Bot.select_booster_action(G.pack_cards.cards, G.hand.cards)
-
-        if _action == Bot.CHOICES.SKIP_BOOSTER_PACK then
-            Middleware.add_event_sequence_recursive({
-                { func = click_skip_booster, delay = 5.0 }
-            })
-        elseif _action == Bot.CHOICES.SELECT_BOOSTER_CARD then
-
-            local _events = { }
-
-            -- Click each card from your deck first (only occurs if _pack_card is consumeable)
-            for i = 1, #_hand_cards, 1 do
-                _events[i] = {
-                    func = function()
-                        click_deck_card(_hand_cards[i])
-                    end,
-                    delay = 5.0
-                }
-            end
-
-            -- Then select the booster card to activate
-            _events[#_events+1] = {
-                func = function()
-                    if not _card then return end
-                    _card:click()
-                end,
-                delay = 2.0
-            }
-
-            _events[#_events+1] = {
-                func = function()
-                    if not _card then return end
-
-                    local _use_button = _card.children.use_button
-                    local _buy_and_use_button = _card.children.buy_and_use_button
-                    local _buy_button = _card.children.buy_button
-                    local _use_and_sell_button = _card.children.use_and_sell_button
-                    if _use_button then
-                        local _node_index = _card.ability.consumeable and 2 or 1
-                        G.FUNCS[_use_button.definition.nodes[_node_index].config.button](_use_button.definition.nodes[_node_index])
-                    elseif _buy_and_use_button then
-                        G.FUNCS[_buy_and_use_button.definition.config.button](_buy_and_use_button.definition)
-                    elseif _buy_button then
-                        G.FUNCS[_buy_button.definition.config.button](_buy_button.definition)
-                    elseif _use_and_sell_button then
-                        G.FUNCS[_use_and_sell_button.definition.config.button](_use_and_sell_button.definition)
-                    end
-                end,
-                delay = 2.0
-            }
-
-            -- Once the pack is done, set can_skip_booster back to false
-            _events[#_events+1] = {
-                func = function()
-                    Middleware.is_opening_booster = false
-                end,
-                delay = 10.0
-            }
-
-            Middleware.add_event_sequence_recursive(_events)
+        -- Click each card from your deck first (only occurs if _pack_card is consumeable)
+        for i = 1, #_hand_cards, 1 do
+            clickcard(_hand_cards[i])
         end
 
+        -- Then select the booster card to activate
+        clickcard(_card)
+        usecard(_card)
     end
-
-    decide()
-
+    
 end
 
 
-local function c_shop()
+local function c_can_shop()
 
-    sendDebugMessage("shop")
     local _done_shopping = false
 
     local _b_can_round_end_shop = true
@@ -332,8 +302,6 @@ local function c_shop()
     for i = 1, #G.shop_jokers.cards, 1 do
         _cards_to_buy[i] = G.shop_jokers.cards[i].cost <= G.GAME.dollars and G.shop_jokers.cards[i] or nil
     end
-    sendDebugMessage(tostring(#_cards_to_buy))
-
 
     local _vouchers_to_buy = { }
     for i = 1, #G.shop_vouchers.cards, 1 do
@@ -359,20 +327,19 @@ local function c_shop()
         _done_shopping = true
     elseif _action == Bot.CHOICES.REROLL_SHOP then
         pushbutton(Middleware.BUTTONS.REROLL)
-    elseif _action == Bot.CHOICES.BUY_CARD or _action == Bot.CHOICES.BUY_VOUCHER or  _action == Bot.CHOICES.BUY_BOOSTER then
-        clickcard(_card)
+    elseif _action == Bot.CHOICES.BUY_CARD or _action == Bot.CHOICES.BUY_VOUCHER or _action == Bot.CHOICES.BUY_BOOSTER then
+        _done_shopping = _action == Bot.CHOICES.BUY_BOOSTER
 
-        local _use_button = _card.children.use_button
-        local _buy_button= _card.children.buy_button
-        if _use_button then
-            pushbutton(_use_button.definition)
-        elseif _buy_button then
-            pushbutton(_buy_button.definition)
-        end
+        clickcard(_card)
+        usecard(_card)
     end
 
     if not _done_shopping then
-        queueaction(c_shop)
+        queueaction(function()
+            firewhenready(function()
+                return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
+            end, c_can_shop)
+        end)
     end
 end
 
@@ -481,7 +448,7 @@ local function c_initgamehooks()
         local _self = ...
 
         if _self and _self.snap_cursor_to.node and _self.snap_cursor_to.node.config and _self.snap_cursor_to.node.config.button then
-            sendDebugMessage("SNAPTO: ".._self.snap_cursor_to.node.config.button)
+            sendDebugMessage("SNAPTO BUTTON: ".._self.snap_cursor_to.node.config.button)
 
             local _button = _self.snap_cursor_to.node
             local _buttonfunc = _self.snap_cursor_to.node.config.button
@@ -495,11 +462,22 @@ local function c_initgamehooks()
             elseif _buttonfunc == 'toggle_shop' and G.shop ~= nil then
                 Middleware.BUTTONS.NEXT_ROUND = _button
 
-                sendDebugMessage('snapto toggle_shop')
                 firewhenready(function()
                     return G.shop ~= nil and G.STATE_COMPLETE and G.STATE == G.STATES.SHOP
-                end, c_shop)
+                end, c_can_shop)
             end
+        end
+    end)
+
+    -- Hook Pack focus
+    G.CONTROLLER.recall_cardarea_focus = Hook.addcallback(G.CONTROLLER.recall_cardarea_focus, function(...)
+        local _self, _arg = ...
+        sendDebugMessage('recall_cardarea_focus')
+        sendDebugMessage(tostring(_arg))
+        if _arg == 'pack_cards' then
+            firewhenready(function()
+                return G.STATE_COMPLETE
+            end, c_can_choose_booster_cards)
         end
     end)
 
@@ -512,26 +490,7 @@ local function c_initgamehooks()
     -- Booster pack opening
     G.FUNCS.can_skip_booster = Hook.addcallback(G.FUNCS.can_skip_booster, function(...)
         local _e = ...
-        if _e.config.button == 'skip_booster' then
-            if not Middleware.is_opening_booster then
-                Middleware.is_opening_booster = true
-
-                if G.STATE == G.STATES.SPECTRAL_PACK or G.STATE == G.STATES.TAROT_PACK then
-                    -- Wait for hand cards to be drawn
-                    Middleware.add_event_sequence_recursive({
-                        { func = c_can_rearrange_hand, delay = 10.0 },
-                        {
-                            func = function()
-                                c_can_choose_booster_cards(_e)
-                            end,
-                            delay = 5.0
-                        }
-                    })
-                else
-                    c_can_choose_booster_cards(_e)
-                end
-            end
-        end
+        Middleware.BUTTONS.SKIP_PACK = _e
     end)
 end
 
@@ -550,8 +509,6 @@ local function w_gamestate(...)
         Middleware.prev_gamestate = _v
     end
 end
-
-
 
 
 function Middleware.hookbalatro()
