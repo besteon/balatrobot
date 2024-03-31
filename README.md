@@ -6,7 +6,7 @@ https://github.com/besteon/balatrobot/assets/103706338/f489169c-7045-4935-a968-a
 
 ## Installation
 
-Requires Steamodded 0.7.2 (Untested with latest version)
+Requires Steamodded (Tested on v0.9.3)
 
 Just unzip the release .zip into your Mods folder.
 
