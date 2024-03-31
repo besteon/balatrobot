@@ -109,53 +109,37 @@ end
 
 local function usecard(card, delay)
 
-    firewhenready(function()
-        if not card then return true end
-        return card.children.use_button or card.children.buy_and_use_button or card.children.buy_button or card.children.use_and_sell_button
-    end, function()
-        local _use_button = nil
-        local _use_button = card.children.use_button and card.children.use_button.definition
-        if _use_button and _use_button.config.button == nil then
-            local _node_index = card.ability.consumeable and 2 or 1
-            _use_button = _use_button.nodes[_node_index]
-        end
-        local _buy_and_use_button = card.children.buy_and_use_button and card.children.buy_and_use_button.definition
-        local _buy_button = card.children.buy_button and card.children.buy_button.definition
-        local _sell_button = card.children.use_and_sell_button and card.children.use_and_sell_button.definition
-
-        if _use_button then
-            pushbutton(_use_button, delay)
-        elseif _buy_and_use_button then
-            pushbutton(_buy_and_use_button, delay)
-        elseif _buy_button then
-            pushbutton(_buy_button, delay)
-        elseif _sell_button then
-            pushbutton(_sell_button, delay)
-        end
-    end)
+    queueaction(function()
+        firewhenready(function()
+            if not card then return true end
+            return card.children.use_button or card.children.buy_and_use_button or card.children.buy_button or card.children.use_and_sell_button
+        end, function()
+            local _use_button = nil
+            local _use_button = card.children.use_button and card.children.use_button.definition
+            if _use_button and _use_button.config.button == nil then
+                local _node_index = card.ability.consumeable and 2 or 1
+                _use_button = _use_button.nodes[_node_index]
+            end
+            local _buy_and_use_button = card.children.buy_and_use_button and card.children.buy_and_use_button.definition
+            local _buy_button = card.children.buy_button and card.children.buy_button.definition
+            local _sell_button = card.children.use_and_sell_button and card.children.use_and_sell_button.definition
+    
+            if _use_button then
+                pushbutton(_use_button, delay)
+            elseif _buy_and_use_button then
+                pushbutton(_buy_and_use_button, delay)
+            elseif _buy_button then
+                pushbutton(_buy_button, delay)
+            elseif _sell_button then
+                pushbutton(_sell_button, delay)
+            end
+        end)
+    end, 0.0)
 end
 
 Middleware.prev_gamestate = -1
 
 Middleware.BUTTONS = {
-    -- Main Menu Buttons
-    --MAIN_MENU_PLAY = nil,
-
-    -- Start Run Buttons
-    --START_RUN_PLAY = nil,
-
-    -- Blind Phase Buttons
-    SMALLBLIND_SELECT = nil,
-    BIGBLIND_SELECT = nil,
-    BOSSBLIND_SELECT = nil,
-    SMALLBLIND_SKIP = nil,
-    BIGBLND_SKIP = nil,
-    --BOSS_REROLL = nil,
-
-    -- Play Phase Buttons
-    --PLAY_HAND = nil,
-    --DISCARD_HAND = nil,
-    CASH_OUT = nil,
 
     -- Shop Phase Buttons
     NEXT_ROUND = nil,
@@ -164,11 +148,7 @@ Middleware.BUTTONS = {
     -- Pack Phase Buttons
     SKIP_PACK = nil,
 
-    -- Game Over Buttons
-    --GAME_OVER_MAIN_MENU = nil,
 }
-
-
 
 local function c_update()
 
@@ -209,7 +189,8 @@ local function c_onmainmenu()
         })
         G.FUNCS.exit_overlay_menu()
 
-        return true        
+        return true  
+
     end
 
     Middleware.add_event_sequence_recursive({
@@ -270,7 +251,36 @@ local function c_can_play_hand()
 
 end
 
+local function c_select_blind()
+
+    local _blind_on_deck = G.GAME.blind_on_deck
+
+    local _blind_obj = G.blind_select_opts[string.lower(_blind_on_deck)]
+    local _select_button = _blind_obj:get_UIE_by_ID('select_blind_button')
+
+
+    if _blind_on_deck == 'Boss' then
+        pushbutton(_select_button)
+        return
+    end
+
+    local _skip_button = _blind_obj:get_UIE_by_ID('tag_'.._blind_on_deck).children[2]
+
+    local _choice = Bot.skip_or_select_blind(_blind_on_deck)
+
+    local _button = nil
+    if _choice == Bot.CHOICES.SELECT_BLIND then
+        _button = _select_button
+    elseif _choice == Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER then
+        _button = _skip_button
+    end
+
+    pushbutton(_button)
+end
+
 local function c_can_choose_booster_cards()
+
+    if not G.pack_cards.cards then return end
 
     local _action, _card, _hand_cards = Bot.select_booster_action(G.pack_cards.cards, G.hand.cards)
 
@@ -286,6 +296,22 @@ local function c_can_choose_booster_cards()
         -- Then select the booster card to activate
         clickcard(_card)
         usecard(_card)
+    end
+
+    if G.GAME.pack_choices - 1 > 0 then
+        queueaction(function()
+            firewhenready(function()
+                return G.STATE_COMPLETE
+            end, c_can_choose_booster_cards)
+        end, 0.0)
+    else
+        if G.GAME.PACK_INTERRUPT == G.STATES.BLIND_SELECT then
+            queueaction(function()
+                firewhenready(function()
+                    return G.STATE_COMPLETE and G.STATE == G.STATES.BLIND_SELECT
+                end, c_select_blind)
+            end, 0.0)
+        end
     end
     
 end
@@ -360,72 +386,16 @@ local function c_start_play_hand()
     })
 end
 
-local function c_select_blind()
+local function w_gamestate(...)
+    local _t, _k, _v = ...
 
-    local _blind_on_deck = G.GAME.blind_on_deck
-
-    if _blind_on_deck == 'Boss' then
-        pushbutton(Middleware.BUTTONS.BOSSBLIND_SELECT)
-        return
-    end
-
-    local _choice = Bot.skip_or_select_blind(_blind_on_deck)
-
-    local _button = nil
-    if _choice == Bot.CHOICES.SELECT_BLIND then
-        if _blind_on_deck == 'Small' then
-            _button = Middleware.BUTTONS.SMALLBLIND_SELECT
-        elseif _blind_on_deck == 'Big' then
-            _button = Middleware.BUTTONS.BIGBLIND_SELECT
-        end
-    elseif _choice == Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER then
-        if _blind_on_deck == 'Small' then
-            _button = Middleware.BUTTONS.SMALLBLIND_SKIP
-        elseif _blind_on_deck == 'Big' then
-            _button = Middleware.BUTTONS.BIGBLIND_SKIP
-        end
-    end
-
-    pushbutton(_button)
-end
-
-
-local function set_blind_select_buttons()
-    local _blind_on_deck = G.GAME.blind_on_deck
-
-    local _blind_obj = G.blind_select_opts[string.lower(_blind_on_deck)]
-    local _select_button = _blind_obj:get_UIE_by_ID('select_blind_button')
-
-    -- TODO fix going to next blind when previous blind select opens a pack
-    _select_button.config = Hook.addonwrite(_select_button.config, function(...)
-        local _t, _k, _v = ...
-        if _k == 'button' and _v ~= nil then
-            Middleware.can_select_blind = true
-        end
-    end)
-
-    if _select_button.config.button then
-        Middleware.can_select_blind = true
-    end
-
-    if _blind_on_deck == 'Boss' then
-        Middleware.BUTTONS.BOSSBLIND_SELECT = _select_button
-        return
-    end
-
-    local _skip_button = _blind_obj:get_UIE_by_ID('tag_'.._blind_on_deck).children[2]
-
-    if _blind_on_deck == 'Small' then
-        Middleware.BUTTONS.SMALLBLIND_SELECT = _select_button
-        Middleware.BUTTONS.SMALLBLIND_SKIP = _skip_button
-    elseif _blind_on_deck == 'Big' then
-        Middleware.BUTTONS.BIGBLIND_SELECT = _select_button
-        Middleware.BUTTONS.BIGBLIND_SKIP = _skip_button
+    if _k == 'STATE' and _v == G.STATES.MENU then
+        c_onmainmenu()
     end
 end
-
 
 local function c_initgamehooks()
+
     -- Hooks break SAVE_MANAGER.channel:push so disable saving. Who needs it when you are botting anyway...
     G.SAVE_MANAGER = {
         channel = {
@@ -440,7 +410,6 @@ local function c_initgamehooks()
          --   { func = c_can_rearrange_hand, delay = 2.0 },
          --   { func = c_can_play_hand, delay = 2.0 }
        -- })
-       return nil
     end)
 
     -- Hook button snaps
@@ -454,12 +423,10 @@ local function c_initgamehooks()
             local _buttonfunc = _self.snap_cursor_to.node.config.button
 
             if _buttonfunc == 'select_blind' and G.STATE == G.STATES.BLIND_SELECT then
-                set_blind_select_buttons()
                 c_select_blind()
             elseif _buttonfunc == 'cash_out' then
-                Middleware.BUTTONS.CASH_OUT = _button
-                pushbutton(Middleware.BUTTONS.CASH_OUT)
-            elseif _buttonfunc == 'toggle_shop' and G.shop ~= nil then
+                pushbutton(_button)
+            elseif _buttonfunc == 'toggle_shop' and G.shop ~= nil then -- 'next_round_button'
                 Middleware.BUTTONS.NEXT_ROUND = _button
 
                 firewhenready(function()
@@ -472,8 +439,6 @@ local function c_initgamehooks()
     -- Hook Pack focus
     G.CONTROLLER.recall_cardarea_focus = Hook.addcallback(G.CONTROLLER.recall_cardarea_focus, function(...)
         local _self, _arg = ...
-        sendDebugMessage('recall_cardarea_focus')
-        sendDebugMessage(tostring(_arg))
         if _arg == 'pack_cards' then
             firewhenready(function()
                 return G.STATE_COMPLETE
@@ -487,37 +452,18 @@ local function c_initgamehooks()
         Middleware.BUTTONS.REROLL = _e
     end)
 
-    -- Booster pack opening
+    -- Booster pack skip availability
     G.FUNCS.can_skip_booster = Hook.addcallback(G.FUNCS.can_skip_booster, function(...)
         local _e = ...
         Middleware.BUTTONS.SKIP_PACK = _e
     end)
 end
 
-
-Middleware.STATEFUNCS = { }
-Middleware.STATEFUNCS[G.STATES.MENU] = c_onmainmenu
-
-local function w_gamestate(...)
-    local _t, _k, _v = ...
-
-    if _k == 'STATE' then
-        if Middleware.STATEFUNCS[_v] then
-            Middleware.STATEFUNCS[_v]()
-        end
-
-        Middleware.prev_gamestate = _v
-    end
-end
-
-
 function Middleware.hookbalatro()
-
     -- Start game from main menu
     G.start_run = Hook.addcallback(G.start_run, c_initgamehooks)
     G = Hook.addonwrite(G, w_gamestate)
     G.update = Hook.addcallback(G.update, c_update)
-
 end
 
 return Middleware

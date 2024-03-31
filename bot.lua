@@ -5,7 +5,7 @@ Bot.SETTINGS = {
     stake = 2,
     seed = nil,
     challenge = nil,
-    action_delay = 1.0
+    action_delay = 5.0
 }
 
 Bot.CHOICES = {
@@ -25,7 +25,7 @@ Bot.CHOICES = {
 -- Options: Small, Big, Boss
 function Bot.skip_or_select_blind(blind)
     if blind == 'Small' or blind == 'Big' then
-        return Bot.CHOICES.SELECT_BLIND
+        return Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
     end
 
     return Bot.CHOICES.SELECT_BLIND
@@ -59,8 +59,8 @@ end
 -- ex. return Bot.CHOICES.BUY_CARD, choices[Bot.CHOICES.BUY_CARD][1]
 function Bot.select_shop_action(choices)
 
-    if choices[Bot.CHOICES.BUY_CARD] then
-        return Bot.CHOICES.BUY_CARD, choices[Bot.CHOICES.BUY_CARD][1]
+    if choices[Bot.CHOICES.BUY_BOOSTER] then
+        return Bot.CHOICES.BUY_BOOSTER, choices[Bot.CHOICES.BUY_BOOSTER][1]
     end
 
     return Bot.CHOICES.NEXT_ROUND_END_SHOP
@@ -79,7 +79,6 @@ function Bot.select_booster_action(pack_cards, hand_cards)
     if G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.SPECTRAL_PACK then
         _action = Bot.CHOICES.SELECT_BOOSTER_CARD
 
-        -- Example of choosing the first card from the pack and 
         _pack_choice = random_element(pack_cards)
         if _pack_choice.ability.consumeable.max_highlighted then
             for i = 1, _pack_choice.ability.consumeable.max_highlighted, 1 do
