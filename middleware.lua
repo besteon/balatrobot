@@ -1,8 +1,20 @@
 
---local Hook = require "hook"
---local Bot = require "bot"
-
 Middleware = { }
+
+Middleware.queuedactions = List.new()
+Middleware.currentaction = nil
+Middleware.conditionalactions = { }
+
+Middleware.BUTTONS = {
+
+    -- Shop Phase Buttons
+    NEXT_ROUND = nil,
+    REROLL = nil,
+
+    -- Pack Phase Buttons
+    SKIP_PACK = nil,
+
+}
 
 function random_key(tb)
     local keys = {}
@@ -40,27 +52,10 @@ function Middleware.add_event_sequence(events)
     return _lastevent
 end
 
-Middleware.queuedactions = List.new()
-Middleware.currentaction = nil
-Middleware.prev_gamestate = -1
-
-Middleware.BUTTONS = {
-
-    -- Shop Phase Buttons
-    NEXT_ROUND = nil,
-    REROLL = nil,
-
-    -- Pack Phase Buttons
-    SKIP_PACK = nil,
-
-}
-
-Middleware.firewhenready = { }
-
 local function firewhenready(condition, func)
-    for i = 1, #Middleware.firewhenready, 1 do
-        if Middleware.firewhenready[i] == nil then
-            Middleware.firewhenready[i] = {
+    for i = 1, #Middleware.conditionalactions, 1 do
+        if Middleware.conditionalactions[i] == nil then
+            Middleware.conditionalactions[i] = {
                 ready = condition,
                 fire = func
             }
@@ -68,7 +63,7 @@ local function firewhenready(condition, func)
         end
     end
 
-    Middleware.firewhenready[#Middleware.firewhenready + 1] = {
+    Middleware.conditionalactions[#Middleware.conditionalactions + 1] = {
         ready = condition,
         fire = func
     }
@@ -145,10 +140,10 @@ local function c_update()
     end
 
     -- Run functions that have been waiting for a condition to be met
-    for i = 1, #Middleware.firewhenready, 1 do
-        if Middleware.firewhenready[i] and Middleware.firewhenready[i].ready() then
-            Middleware.firewhenready[i].fire()
-            Middleware.firewhenready[i] = nil
+    for i = 1, #Middleware.conditionalactions, 1 do
+        if Middleware.conditionalactions[i] and Middleware.conditionalactions[i].ready() then
+            Middleware.conditionalactions[i].fire()
+            Middleware.conditionalactions[i] = nil
         end
     end
 end
@@ -356,8 +351,7 @@ local function c_initgamehooks()
         local _self = ...
 
         if _self and _self.snap_cursor_to.node and _self.snap_cursor_to.node.config and _self.snap_cursor_to.node.config.button then
-            sendDebugMessage("SNAPTO BUTTON: ".._self.snap_cursor_to.node.config.button)
-
+            
             local _button = _self.snap_cursor_to.node
             local _buttonfunc = _self.snap_cursor_to.node.config.button
 
