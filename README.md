@@ -15,3 +15,7 @@ Just unzip the release .zip into your Mods folder.
 THIS MOD DOES NOT CONTAIN A FINISHED BOT, JUST THE API.
 
 To make your own bot, modify Bot.lua. There is also an example in the examples folder to get you started (it isn't very good...).
+
+## Disclaimer
+
+This mod may not work in conjunction with other mods. Use at your own risk.
