@@ -16,26 +16,6 @@ function random_element(tb)
     return tb[keys[math.random(#keys)]]
 end
 
-function Middleware.add_event_sequence_recursive(events)
-    if events == nil or #events <= 0 then
-        return true
-    end
-    
-    local head = table.remove(events, 1)
-
-    local _event = Event({
-        trigger = 'after',
-        delay = head.delay,
-        blocking = false,
-        func = function()
-            head.func(head.args)
-            Middleware.add_event_sequence_recursive(events)
-            return true
-        end
-    })
-    G.E_MANAGER:add_event(_event)
-end
-
 function Middleware.add_event_sequence(events)
 
     local _lastevent = nil
@@ -62,6 +42,18 @@ end
 
 Middleware.queuedactions = List.new()
 Middleware.currentaction = nil
+Middleware.prev_gamestate = -1
+
+Middleware.BUTTONS = {
+
+    -- Shop Phase Buttons
+    NEXT_ROUND = nil,
+    REROLL = nil,
+
+    -- Pack Phase Buttons
+    SKIP_PACK = nil,
+
+}
 
 Middleware.firewhenready = { }
 
@@ -137,19 +129,6 @@ local function usecard(card, delay)
     end, 0.0)
 end
 
-Middleware.prev_gamestate = -1
-
-Middleware.BUTTONS = {
-
-    -- Shop Phase Buttons
-    NEXT_ROUND = nil,
-    REROLL = nil,
-
-    -- Pack Phase Buttons
-    SKIP_PACK = nil,
-
-}
-
 local function c_update()
 
     -- Process the queue of Bot events
@@ -174,80 +153,25 @@ local function c_update()
     end
 end
 
-local function c_onmainmenu()
-
-    local function click_run_play_button()
-        G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = Bot.SETTINGS.challenge})
-        return true
-    end
-
-    local function click_main_play_button()
-        local _play_button = G.MAIN_MENU_UI:get_UIE_by_ID('main_menu_play')
-
-        G.FUNCS[_play_button.config.button]({
-            config = { }
-        })
-        G.FUNCS.exit_overlay_menu()
-
-        return true  
-
-    end
-
-    Middleware.add_event_sequence_recursive({
-        { func = click_main_play_button, delay = 3.0 },
-        { func = click_run_play_button, delay = 1.0 }
-    })
-end
-
 local function c_can_play_hand()
 
-    local function click_play_hand()
-        if G.buttons == nil then return true end
+    local _action, _cards_to_play = Bot.select_cards_from_hand()
 
+    for i = 1, #_cards_to_play, 1 do
+        clickcard(_cards_to_play[i])
+    end
+
+    -- Option 1: Play Hand
+    if _action == Bot.CHOICES.PLAY_HAND then
         local _play_button = UIBox:get_UIE_by_ID('play_button', G.buttons.UIRoot)
-        if _play_button ~= nil and _play_button.config.button ~= nil then
-           G.FUNCS[_play_button.config.button](_play_button)
-        end
+        pushbutton(_play_button)
     end
 
-    local function click_discard_hand()
-        if G.buttons == nil then return true end
-
+    -- Option 2: Discard Hand
+    if _action == Bot.CHOICES.DISCARD_HAND then
         local _discard_button = UIBox:get_UIE_by_ID('discard_button', G.buttons.UIRoot)
-        if _discard_button ~= nil and _discard_button.config.button ~= nil then
-            G.FUNCS[_discard_button.config.button](_discard_button)
-        end
+        pushbutton(_discard_button)
     end
-
-    local function decide()
-
-        local _action, _cards_to_play = Bot.select_cards_from_hand()
-
-        local _events = { }
-        for i = 1, #_cards_to_play, 1 do
-            _events[i] = {
-                func = function()
-                    G.hand.cards[i]:click()
-                end,
-                delay = 0.5
-            }
-        end
-
-        -- Option 1: Play Hand
-        if _action == Bot.CHOICES.PLAY_HAND then
-            _events[#_events+1] = { func = click_play_hand, delay = 2.0 }
-        end
-
-        -- Option 2: Discard Hand
-        if _action == Bot.CHOICES.DISCARD_HAND then
-            _events[#_events+1] = { func = click_discard_hand, delay = 2.0 } 
-        end
-
-        Middleware.add_event_sequence_recursive(_events)
-
-    end
-
-    decide()
 
 end
 
@@ -316,7 +240,6 @@ local function c_can_choose_booster_cards()
     
 end
 
-
 local function c_can_shop()
 
     local _done_shopping = false
@@ -379,18 +302,36 @@ local function c_can_rearrange_hand()
 end
 
 local function c_start_play_hand()
-    Middleware.add_event_sequence_recursive({
-        { func = c_can_rearrange_jokers, delay = 2.0 },
-        { func = c_can_rearrange_hand, delay = 2.0 },
-        { func = c_can_play_hand, delay = 2.0 }
-    })
+
+    queueaction(function()
+        c_can_rearrange_jokers()
+    end)
+
+    queueaction(function()
+        c_can_rearrange_hand()
+    end)
+
+    queueaction(function()
+        c_can_play_hand()
+    end, 0.0)
+
 end
 
 local function w_gamestate(...)
     local _t, _k, _v = ...
 
     if _k == 'STATE' and _v == G.STATES.MENU then
-        c_onmainmenu()
+        queueaction(function()
+            local _play_button = G.MAIN_MENU_UI:get_UIE_by_ID('main_menu_play')
+            G.FUNCS[_play_button.config.button]({
+                config = { }
+            })
+            G.FUNCS.exit_overlay_menu()
+        end)
+
+        queueaction(function()
+            G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = Bot.SETTINGS.challenge})
+        end, 1.0)
     end
 end
 
@@ -405,11 +346,9 @@ local function c_initgamehooks()
 
     -- Detect when hand has been drawn
     G.GAME.blind.drawn_to_hand = Hook.addcallback(G.GAME.blind.drawn_to_hand, function(...)
-        --Middleware.add_event_sequence_recursive({
-         --   { func = c_can_rearrange_jokers, delay = 2.0 },
-         --   { func = c_can_rearrange_hand, delay = 2.0 },
-         --   { func = c_can_play_hand, delay = 2.0 }
-       -- })
+        firewhenready(function()
+            return G.buttons and G.STATE_COMPLETE and G.STATE == G.STATES.SELECTING_HAND
+        end, c_start_play_hand)
     end)
 
     -- Hook button snaps

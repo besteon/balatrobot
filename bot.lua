@@ -5,7 +5,7 @@ Bot.SETTINGS = {
     stake = 2,
     seed = nil,
     challenge = nil,
-    action_delay = 5.0
+    action_delay = 1.0
 }
 
 Bot.CHOICES = {
@@ -25,23 +25,22 @@ Bot.CHOICES = {
 -- Options: Small, Big, Boss
 function Bot.skip_or_select_blind(blind)
     if blind == 'Small' or blind == 'Big' then
-        return Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
+        return Bot.CHOICES.SELECT_BLIND
     end
 
     return Bot.CHOICES.SELECT_BLIND
 end
 
--- Return PLAY_HAND or DISCARD_HAND, hand card indices
--- ex. return Bot.CHOICES.PLAY_HAND, { 1, 2, 3 }
+-- Return PLAY_HAND or DISCARD_HAND, cards to select
+-- ex. return Bot.CHOICES.PLAY_HAND, { G.hand.cards[1], G.hand.cards[2], G.hand.cards[3] }
 function Bot.select_cards_from_hand()
 
-    local _cards_in_hand = #G.hand.cards
-    local _max_cards_to_select = math.min(5, _cards_in_hand)
+    local _max_cards_to_select = math.min(5, #G.hand.cards)
     local _num_cards_to_select = _max_cards_to_select   --math.random(_max_cards_to_select)
 
     local _selected = { }
     for i = 1, _num_cards_to_select, 1 do
-        _selected[i] = i
+        _selected[i] = G.hand.cards[i]
     end
 
     local _play_or_discard = math.random(2)
