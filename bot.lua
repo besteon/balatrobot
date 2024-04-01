@@ -19,6 +19,7 @@ Bot.CHOICES = {
 -- CHANGE ME
 Bot.SETTINGS = {
     stake = 1,
+    deck = "Red Deck",
 
     -- Keep these nil for random seed
     seed = nil,
