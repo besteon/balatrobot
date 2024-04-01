@@ -24,7 +24,7 @@ Bot.CHOICES = {
 
 function Bot.skip_or_select_blind(blind)
     if blind == 'Small' or blind == 'Big' then
-        return Bot.CHOICES.SELECT_BLIND
+        return Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
     end
 
     return Bot.CHOICES.SELECT_BLIND

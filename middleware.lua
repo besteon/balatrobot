@@ -325,6 +325,13 @@ local function w_gamestate(...)
         end)
 
         queueaction(function()
+            for k, v in pairs(G.P_CENTER_POOLS.Back) do
+                if v.name == Bot.SETTINGS.deck then
+                    G.GAME.selected_back:change_to(v)
+                    G.GAME.viewed_back:change_to(v)
+                end
+            end
+
             G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = Bot.SETTINGS.challenge})
         end, 1.0)
     end
@@ -393,6 +400,15 @@ local function c_initgamehooks()
 end
 
 function Middleware.hookbalatro()
+    -- Unlock all card backs
+    for k, v in pairs(G.P_CENTERS) do
+        if not v.demo and not v.wip and v.set == "Back" then 
+            v.alerted = true
+            v.discovered = true
+            v.unlocked = true
+        end
+    end
+
     -- Start game from main menu
     G.start_run = Hook.addcallback(G.start_run, c_initgamehooks)
     G = Hook.addonwrite(G, w_gamestate)
