@@ -3,6 +3,7 @@ Bot = { }
 
 Bot.SETTINGS = {
     stake = 2,
+    deck = "Red Deck",
     seed = nil,
     challenge = nil,
     action_delay = 1.0
