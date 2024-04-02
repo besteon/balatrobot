@@ -197,9 +197,14 @@ local function c_select_blind()
     pushbutton(_button)
 end
 
+Middleware.choosingboostercards = false
+
 local function c_can_choose_booster_cards()
 
+    if Middleware.choosingboostercards == true then return end
     if not G.pack_cards.cards then return end
+
+    Middleware.choosingboostercards = true
 
     local _action, _card, _hand_cards = Bot.select_booster_action(G.pack_cards.cards, G.hand.cards)
 
@@ -220,15 +225,21 @@ local function c_can_choose_booster_cards()
     if G.GAME.pack_choices - 1 > 0 then
         queueaction(function()
             firewhenready(function()
-                return G.STATE_COMPLETE
-            end, c_can_choose_booster_cards)
+                return Middleware.BUTTONS.SKIP_PACK ~= nil and Middleware.BUTTONS.SKIP_PACK.config.button == 'skip_booster'
+            end, function()
+                Middleware.choosingboostercards = false
+                c_can_choose_booster_cards()
+            end)
         end, 0.0)
     else
         if G.GAME.PACK_INTERRUPT == G.STATES.BLIND_SELECT then
             queueaction(function()
                 firewhenready(function()
                     return G.STATE_COMPLETE and G.STATE == G.STATES.BLIND_SELECT
-                end, c_select_blind)
+                end, function()
+                    Middleware.choosingboostercards = false
+                    c_select_blind()
+                end)
             end, 0.0)
         end
     end
@@ -376,16 +387,6 @@ local function c_initgamehooks()
         end
     end)
 
-    -- Hook Pack focus
-    G.CONTROLLER.recall_cardarea_focus = Hook.addcallback(G.CONTROLLER.recall_cardarea_focus, function(...)
-        local _self, _arg = ...
-        if _arg == 'pack_cards' then
-            firewhenready(function()
-                return G.STATE_COMPLETE
-            end, c_can_choose_booster_cards)
-        end
-    end)
-
     -- Set reroll availability
     G.FUNCS.can_reroll = Hook.addcallback(G.FUNCS.can_reroll, function(...)
         local _e = ...
@@ -396,6 +397,9 @@ local function c_initgamehooks()
     G.FUNCS.can_skip_booster = Hook.addcallback(G.FUNCS.can_skip_booster, function(...)
         local _e = ...
         Middleware.BUTTONS.SKIP_PACK = _e
+        if Middleware.BUTTONS.SKIP_PACK ~= nil and Middleware.BUTTONS.SKIP_PACK.config.button == 'skip_booster' then
+            c_can_choose_booster_cards()
+        end
     end)
 end
 
