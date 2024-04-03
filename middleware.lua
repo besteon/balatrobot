@@ -86,6 +86,12 @@ local function pushbutton(button, delay)
     end, delay)
 end
 
+local function pushbutton_instant(button, delay)
+    if button and button.config and button.config.button then
+        G.FUNCS[button.config.button](button)
+    end
+end
+
 local function clickcard(card, delay)
     queueaction(function()
         if card and card.click then
@@ -97,47 +103,44 @@ end
 local function usecard(card, delay)
 
     queueaction(function()
-        firewhenready(function()
-            if not card then return true end
-            return card.children.use_button or card.children.buy_and_use_button or card.children.buy_button or card.children.use_and_sell_button
-        end, function()
-            local _use_button = nil
-            local _use_button = card.children.use_button and card.children.use_button.definition
-            if _use_button and _use_button.config.button == nil then
-                local _node_index = card.ability.consumeable and 2 or 1
-                _use_button = _use_button.nodes[_node_index]
+        local _use_button = nil
+        local _use_button = card.children.use_button and card.children.use_button.definition
+        if _use_button and _use_button.config.button == nil then
+            local _node_index = card.ability.consumeable and 2 or 1
+            _use_button = _use_button.nodes[_node_index]
+
+            if card.area and card.area.config.type == 'joker' then
+                local _use_button = card.children.use_button.definition.nodes[1].nodes[1].nodes[1].nodes[1]
+                pushbutton_instant(_use_button, delay)
+            else
+                pushbutton_instant(_use_button, delay)
             end
-            local _buy_and_use_button = card.children.buy_and_use_button and card.children.buy_and_use_button.definition
-            local _buy_button = card.children.buy_button and card.children.buy_button.definition
-            local _sell_button = card.children.use_and_sell_button and card.children.use_and_sell_button.definition
-    
-            if _use_button then
-                pushbutton(_use_button, delay)
-            elseif _buy_and_use_button then
-                pushbutton(_buy_and_use_button, delay)
-            elseif _buy_button then
-                pushbutton(_buy_button, delay)
-            elseif _sell_button then
-                pushbutton(_sell_button, delay)
-            end
-        end)
-    end, 0.0)
+
+            return
+        end
+        local _buy_and_use_button = card.children.buy_and_use_button and card.children.buy_and_use_button.definition
+        local _buy_button = card.children.buy_button and card.children.buy_button.definition
+
+        if _buy_and_use_button then
+            pushbutton_instant(_buy_and_use_button, delay)
+        elseif _buy_button then
+            pushbutton_instant(_buy_button, delay)
+        end
+    end, delay)
 end
 
 local function c_update()
 
     -- Process the queue of Bot events
+    _events = { }
     if not List.isempty(Middleware.queuedactions) and
         (not Middleware.currentaction or 
             (Middleware.currentaction and Middleware.currentaction.complete)) then
 
         local _func_and_delay = List.popright(Middleware.queuedactions)
-
-        local _event = Middleware.add_event_sequence({
-            { func = _func_and_delay.func, delay = _func_and_delay.delay }
-        })
-        Middleware.currentaction = _event
+        Middleware.currentaction = Middleware.add_event_sequence({{ func = _func_and_delay.func, delay = _func_and_delay.delay }})
     end
+
 
     -- Run functions that have been waiting for a condition to be met
     for i = 1, #Middleware.conditionalactions, 1 do
@@ -299,27 +302,41 @@ local function c_can_shop()
 end
 
 
-local function c_can_rearrange_jokers()
-    Bot.rearrange_jokers()
+local function c_can_manage_jokers()
+    
+    local _choice, _cards = Bot.manage_jokers()
+
+    if _choice == Bot.CHOICES.NO_MANAGE then return end
+
+
+    if _choice == Bot.CHOICES.SELL_CARD then
+        for i = 1, #_cards, 1 do
+            sendDebugMessage("selling card")
+            clickcard(_cards[i])
+            usecard(_cards[i])
+        end
+    end
+end
+
+local function c_can_manage_consumeables()
+    local _choice, _cards = Bot.manage_consumeables()
+
+    if _choice == Bot.CHOICES.NO_MANAGE then return end
+
 end
 
 local function c_can_rearrange_hand()
-    Bot.rearrange_hand()
+    local _choice = Bot.rearrange_hand()
+
+    if _choice == Bot.CHOICES.NO_MANAGE then return end
 end
 
 local function c_start_play_hand()
-
-    queueaction(function()
-        c_can_rearrange_jokers()
-    end)
-
-    queueaction(function()
-        c_can_rearrange_hand()
-    end)
-
-    queueaction(function()
-        c_can_play_hand()
-    end, 0.0)
+    
+    c_can_manage_jokers()
+    c_can_manage_consumeables()
+    c_can_rearrange_hand()
+    c_can_play_hand()
 
 end
 
