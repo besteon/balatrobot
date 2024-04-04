@@ -2,75 +2,113 @@
 Bot = { }
 
 -- DO NOT TOUCH
-Bot.CHOICES = {
+Bot.ACTIONS = {
     SELECT_BLIND = 1,
-    SKIP_BLIND_SELECT_VOUCHER = 2,
+    SKIP_BLIND = 2,
     PLAY_HAND = 3,
     DISCARD_HAND = 4,
-    NEXT_ROUND_END_SHOP = 5,
+    END_SHOP = 5,
     REROLL_SHOP = 6,
     BUY_CARD = 7,
     BUY_VOUCHER = 8,
     BUY_BOOSTER = 9,
     SELECT_BOOSTER_CARD = 10,
     SKIP_BOOSTER_PACK = 11,
+    SELL_CARD = 12,
+    USE_CONSUMABLE = 13,
+    SELL_CONSUMABLE = 14,
+    REARRANGE_JOKERS = 15,
+    REARRANGE_CONSUMABLES = 16,
+    REARRANGE_HAND = 17,
 }
 
 -- CHANGE ME
 Bot.SETTINGS = {
     stake = 1,
+    deck = "Plasma Deck",
 
     -- Keep these nil for random seed
-    seed = nil,
+    seed = "1OGB5WO",
     challenge = nil,
 
     -- Time between actions the bot takes (pushing buttons, clicking cards, etc.)
-    action_delay = 1.0,
+    -- Minimum is 1 frame per action
+    action_delay = 0,
 }
 
 --- Skips or selects the current blind
 ---@param blind string
 --      One of 'Small', 'Big', 'Boss'
 ---@return number Return
---      Bot.CHOICES.SELECT_BLIND or Bot.CHOICES.SKIP_BLIND_SELECT_VOUCHER
+--      Bot.ACTIONS.SELECT_BLIND or Bot.ACTIONS.SKIP_BLIND
 function Bot.skip_or_select_blind(blind)
-    return Bot.CHOICES.SELECT_BLIND
+    if blind == 'Small' or blind == 'Big' then
+        return Bot.ACTIONS.SKIP_BLIND
+    end
+
+    return Bot.ACTIONS.SELECT_BLIND
 end
 
 --- Selects cards from the current hand and plays or discards them
 ---@return integer
---      Bot.CHOICES.PLAY_HAND or Bot.CHOICES.DISCARD_HAND
+--      Bot.ACTIONS.PLAY_HAND or Bot.ACTIONS.DISCARD_HAND
 ---@return table
 --      { G.hand.cards[1], G.hand.cards[2], G.hand.cards[3] }
+
+local num_hand = 0
 function Bot.select_cards_from_hand()
-    return Bot.CHOICES.PLAY_HAND, { G.hand.cards[1] }
+
+    num_hand = num_hand + 1
+
+    -- Ante 1 Boss
+    if num_hand == 1 then
+        -- Get flush
+        return Bot.ACTIONS.DISCARD_HAND, { 2, 3, 6, 7 }
+    elseif num_hand == 2 then
+        -- Play Flush
+        return Bot.ACTIONS.PLAY_HAND, { 1, 3, 4, 5, 8 }
+    end
+
+    -- Play the first card for the rest of the game
+    return Bot.ACTIONS.PLAY_HAND, { 1 }
 end
 
 --- 
 ---@param choices table
 -- {
---      Bot.CHOICES.BUY_BOOSTER = { cards },
---      Bot.CHOICES.BUY_VOUCHER = { cards },
---      Bot.CHOICES.BUY_CARD = { cards },
---      Bot.CHOICES.REROLL_SHOP = true/false,
---      Bot.CHOICES.NEXT_ROUND_END_SHOP = true
+--      Bot.ACTIONS.BUY_BOOSTER = { cards },
+--      Bot.ACTIONS.BUY_VOUCHER = { cards },
+--      Bot.ACTIONS.BUY_CARD = { cards },
+--      Bot.ACTIONS.REROLL_SHOP = true/false,
+--      Bot.ACTIONS.END_SHOP = true
 -- }
 ---@return integer
---      One of the above Bot.CHOICES
+--      One of the above Bot.ACTIONS
 ---@return card
 --      The card you would like to buy
--- ex. return Bot.CHOICES.BUY_CARD, choices[Bot.CHOICES.BUY_CARD][1]
+-- ex. return Bot.ACTIONS.BUY_CARD, choices[Bot.ACTIONS.BUY_CARD][1]
+
+local num_shop = 0
 function Bot.select_shop_action(choices)
 
-    if choices[Bot.CHOICES.BUY_BOOSTER] then
-        return Bot.CHOICES.BUY_BOOSTER, choices[Bot.CHOICES.BUY_BOOSTER][1]
+    num_shop = num_shop + 1
+
+    -- Buy the Bull
+    if num_shop == 1 and choices[Bot.ACTIONS.BUY_CARD] then
+        return Bot.ACTIONS.BUY_CARD, 2
     end
 
-    return Bot.CHOICES.NEXT_ROUND_END_SHOP
+    -- Buy Luchador
+    if num_shop == 5 and choices[Bot.ACTIONS.BUY_CARD] then
+        return Bot.ACTIONS.BUY_CARD, 2
+    end
+
+
+    return Bot.ACTIONS.END_SHOP
 end
 
 
--- Returns one of the following CHOICES, card to pick, and deck cards to pick if applicable
+-- Returns one of the following ACTIONS, card to pick, and deck cards to pick if applicable
 --      SELECT_BOOSTER_CARD
 --      SKIP_BOOSTER_PACK
 
@@ -80,7 +118,7 @@ end
 ---@param hand_cards table
 --      The list of cards in your hand when opening a Tarot or Spectral pack
 ---@return integer
---      Bot.CHOICES.SKIP_BOOSTER_PACK or Bot.CHOICES.SELECT_BOOSTER_CARD
+--      Bot.ACTIONS.SKIP_BOOSTER_PACK or Bot.ACTIONS.SELECT_BOOSTER_CARD
 ---@return card
 --      The booster card to pick ex. pack_cards[1]
 ---@return table
@@ -88,17 +126,33 @@ end
 --      up to the max of your pack_choice.ability.consumeable.max_highlighted
 --      ex. { hand_cards[1] }
 function Bot.select_booster_action(pack_cards, hand_cards)
-    return Bot.CHOICES.SELECT_BOOSTER_CARD, pack_cards[1], { hand_cards[1] }
+    return Bot.ACTIONS.SKIP_BOOSTER_PACK
 end
 
---- Directly change the order of G.hand.cards
-function Bot.rearrange_hand()
-    G.hand:shuffle()
+function Bot.sell_jokers()
+    if #G.jokers.cards > 1 then
+        return Bot.ACTIONS.SELL_CARD, { 2 }
+    end
 end
 
---- Directly change the order of G.jokers.cards
+-- Return the action and indices of how the jokers should be rearranged
+-- ex. return Bot.ACTIONS.REARRANGE_JOKERS, { 2, 1, 3  }
 function Bot.rearrange_jokers()
-    G.jokers:shuffle()
+    --return Bot.ACTIONS.REARRANGE_JOKERS, { 2, 1 }
 end
+
+function Bot.use_or_sell_consumables()
+
+end
+
+function Bot.rearrange_consumables()
+
+end
+
+-- Return the full new order of the hand
+function Bot.rearrange_hand()
+    --return Bot.ACTIONS.REARRANGE_HAND, { 2, 1, 3, 4, 5, 6, 7, 8 }
+end
+
 
 return Bot
