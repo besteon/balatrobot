@@ -1,7 +1,7 @@
 # Balatrobot - A Botting API for Balatro
 
 
-https://github.com/besteon/balatrobot/assets/103706338/f489169c-7045-4935-a968-aa33a1031304
+https://github.com/besteon/balatrobot/assets/103706338/8722b3ec-e74f-4953-a201-47e2f9bd13a9
 
 
 ## Installation
