@@ -14,7 +14,7 @@ Bot.ACTIONS = {
     BUY_BOOSTER = 9,
     SELECT_BOOSTER_CARD = 10,
     SKIP_BOOSTER_PACK = 11,
-    SELL_CARD = 12,
+    SELL_JOKER = 12,
     USE_CONSUMABLE = 13,
     SELL_CONSUMABLE = 14,
     REARRANGE_JOKERS = 15,
@@ -29,11 +29,14 @@ Bot.SETTINGS = {
 
     -- Keep these nil for random seed
     seed = "1OGB5WO",
-    challenge = nil,
+    challenge = '',
 
     -- Time between actions the bot takes (pushing buttons, clicking cards, etc.)
     -- Minimum is 1 frame per action
     action_delay = 0,
+
+    -- Replay actions from file?
+    replay = false,
 }
 
 --- Skips or selects the current blind
@@ -120,18 +123,18 @@ end
 ---@return integer
 --      Bot.ACTIONS.SKIP_BOOSTER_PACK or Bot.ACTIONS.SELECT_BOOSTER_CARD
 ---@return card
---      The booster card to pick ex. pack_cards[1]
+--      The booster card to pick ex. 1
 ---@return table
 --      The list of hand cards use the booster card on,
 --      up to the max of your pack_choice.ability.consumeable.max_highlighted
---      ex. { hand_cards[1] }
+--      ex. { 1, 2 }
 function Bot.select_booster_action(pack_cards, hand_cards)
     return Bot.ACTIONS.SKIP_BOOSTER_PACK
 end
 
 function Bot.sell_jokers()
     if #G.jokers.cards > 1 then
-        return Bot.ACTIONS.SELL_CARD, { 2 }
+        return Bot.ACTIONS.SELL_JOKER, { 2 }
     end
 end
 

@@ -154,10 +154,8 @@ end
 local function c_play_hand()
 
     local _action, _cards_to_play = Bot.select_cards_from_hand()
-    sendDebugMessage("c_play_hand")
 
     for i = 1, #_cards_to_play do
-        sendDebugMessage(tostring(_cards_to_play[i]))
         clickcard(G.hand.cards[_cards_to_play[i]])
     end
 
@@ -316,7 +314,7 @@ local function c_sell_jokers()
 
     if not _action then return end
 
-    if _action == Bot.ACTIONS.SELL_CARD then
+    if _action == Bot.ACTIONS.SELL_JOKER then
         for i = 1, #_cards do
             clickcard(G.jokers.cards[_cards[i]])
             usecard(G.jokers.cards[_cards[i]])
@@ -402,7 +400,15 @@ local function w_gamestate(...)
                 end
             end
 
-            G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = Bot.SETTINGS.challenge})
+            local _challenge = nil
+            if Bot.SETTINGS.challenge and Bot.SETTINGS.challenge ~= '' then
+                for i = 1, #G.CHALLENGES do
+                    if G.CHALLENGES[i].name == Bot.SETTINGS.challenge then
+                        _challenge = G.CHALLENGES[i]
+                    end                    
+                end
+            end
+            G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = _challenge})
         end, 1.0)
     end
 end

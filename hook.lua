@@ -49,10 +49,12 @@ local function _inithook(obj)
 			-- Call the callbacks with the return value of the original function OR
 			-- with the original arguments if original function returned null
 			local _r3 = (_r2 and #_r2 > 0 and {_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, unpack(_r2))}) or {_callfuncs(hook, Hook.FUNCTYPES.CALLBACK, ...)}
+			
 
 			-- The final return value is the return value of the callbacks OR
 			-- the return value of the original function if null
-			return (_r3 ~= nil and #_r3 > 0 and unpack(_r3)) or unpack(_r2)
+			local _result = (_r3 ~= nil and #_r3 > 0 and _r3) or _r2
+			return unpack(_result)
 		end
 	end
 
