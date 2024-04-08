@@ -136,12 +136,12 @@ function Botlogger.inithooks()
                     List.pushleft(Botlogger.q_select_cards_from_hand, { _num_action, _action })
                 elseif _action[1] == Bot.ACTIONS.END_SHOP or _action[1] == Bot.ACTIONS.REROLL_SHOP or _action[1] == Bot.ACTIONS.BUY_CARD or _action[1] == Bot.ACTIONS.BUY_VOUCHER or _action[1] == Bot.ACTIONS.BUY_BOOSTER then
                     if #_splitstring > 1 then
-                        _action[2] = tonumber(_splitstring[2])
+                        _action[2] = {tonumber(_splitstring[2])}
                     end
                     List.pushleft(Botlogger.q_select_shop_action, { _num_action, _action })
                 elseif _action[1] == Bot.ACTIONS.SELECT_BOOSTER_CARD or _action[1] == Bot.ACTIONS.SKIP_BOOSTER_PACK then
                     if #_splitstring > 1 then
-                        _action[2] = tonumber(_splitstring[2])
+                        _action[2] = {tonumber(_splitstring[2])}
                     end
 
                     if #_splitstring > 2 then
@@ -160,7 +160,7 @@ function Botlogger.inithooks()
                     _action[2] = _cards
                     List.pushleft(Botlogger.q_sell_jokers, { _num_action, _action })
                 elseif _action[1] == Bot.ACTIONS.USE_CONSUMABLE or _action[1] == Bot.ACTIONS.SELL_CONSUMABLE then
-                    _action[2] = tonumber(_splitstring[2])
+                    _action[2] = {tonumber(_splitstring[2])}
                     List.pushleft(Botlogger.q_use_or_sell_consumables, { _num_action, _action })
                 elseif _action[1] == Bot.ACTIONS.REARRANGE_JOKERS then
                     local _cards = { }
@@ -191,7 +191,6 @@ function Botlogger.inithooks()
             for k,v in pairs(Bot) do
                 if type(Bot[k]) == 'function' then
                     Bot[k] = function()
-                        sendDebugMessage('Calling replacement function '..k)
                         if not List.isempty(Botlogger['q_'..k]) then
                             local _action = List.popright(Botlogger['q_'..k])
 
@@ -200,19 +199,12 @@ function Botlogger.inithooks()
                                 return unpack(_action[2])
                             else
                                 List.pushright(Botlogger['q_'..k], _action)
+                                sendDebugMessage('q_'..k.." is not ready. Returning Bot.ACTIONS.PASS")
+                                return Bot.ACTIONS.PASS
                             end
-
-                            sendDebugMessage('Returning action ' .. tostring(_action[1]))
-                            sendDebugMessage('Action length: ' .. tostring(#_action))
-                            if #_action > 1 then
-                                if type(_action[2]) == 'number' then
-                                    sendDebugMessage('Action[2]: ' .. tostring(_action[2]))
-                                elseif type(_action[2]) == 'table' then
-                                    for i = 1, #_action[2] do
-                                        sendDebugMessage('Action[2]['..tostring(i)..']: '..tostring(_action[2][i]))
-                                    end
-                                end
-                            end
+                        else
+                            sendDebugMessage('q_'..k.." is empty. Returning Bot.ACTIONS.PASS")
+                            return Bot.ACTIONS.PASS
                         end
                     end
                 end

@@ -9,6 +9,9 @@ function SMODS.INIT.BALATROBOT()
 
 	assert(load(NFS.read(mw.path .. "list.lua")))()
 	assert(load(NFS.read(mw.path .. "hook.lua")))()
+	assert(load(NFS.read(mw.path .. "bitser.lua")))()
+	assert(load(NFS.read(mw.path .. "sock.lua")))()
+	assert(load(NFS.read(mw.path .. "api.lua")))()
 	assert(load(NFS.read(mw.path .. "bot.lua")))()
 	assert(load(NFS.read(mw.path .. "middleware.lua")))()
 	assert(load(NFS.read(mw.path .. "botlogger.lua")))()
@@ -19,4 +22,6 @@ function SMODS.INIT.BALATROBOT()
 
 	Botlogger.path = mw.path
 	Botlogger.inithooks()
+
+	BalatrobotAPI.init()
 end

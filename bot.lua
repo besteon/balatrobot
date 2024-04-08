@@ -20,7 +20,28 @@ Bot.ACTIONS = {
     REARRANGE_JOKERS = 15,
     REARRANGE_CONSUMABLES = 16,
     REARRANGE_HAND = 17,
+    PASS = 18,
 }
+
+Bot.ACTIONPARAMS = { }
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BLIND] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BLIND] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.PLAY_HAND] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.DISCARD_HAND] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.END_SHOP] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.REROLL_SHOP] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_CARD] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_VOUCHER] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_BOOSTER] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BOOSTER_CARD] = 3
+Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BOOSTER_PACK] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_JOKER] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.USE_CONSUMABLE] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_CONSUMABLE] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_JOKERS] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_CONSUMABLES] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_HAND] = 2
+Bot.ACTIONPARAMS[Bot.ACTIONS.PASS] = 1
 
 -- CHANGE ME
 Bot.SETTINGS = {
@@ -36,7 +57,7 @@ Bot.SETTINGS = {
     action_delay = 0,
 
     -- Replay actions from file?
-    replay = false,
+    replay = true,
 }
 
 --- Skips or selects the current blind
@@ -98,12 +119,12 @@ function Bot.select_shop_action(choices)
 
     -- Buy the Bull
     if num_shop == 1 and choices[Bot.ACTIONS.BUY_CARD] then
-        return Bot.ACTIONS.BUY_CARD, 2
+        return Bot.ACTIONS.BUY_CARD, { 2 }
     end
 
     -- Buy Luchador
     if num_shop == 5 and choices[Bot.ACTIONS.BUY_CARD] then
-        return Bot.ACTIONS.BUY_CARD, 2
+        return Bot.ACTIONS.BUY_CARD, { 2 }
     end
 
 
