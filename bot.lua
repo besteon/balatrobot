@@ -58,6 +58,9 @@ Bot.SETTINGS = {
 
     -- Replay actions from file?
     replay = true,
+
+    -- Receive commands from the API?
+    api = false,
 }
 
 --- Skips or selects the current blind

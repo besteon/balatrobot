@@ -59,9 +59,11 @@ function Botlogger.logbotdecision(...)
             end
         end
 
-        local _f = io.open(Botlogger.filename, 'a')
-        _f:write(_logstring, '\n')
-        _f:close()
+        if Botlogger.filename then
+            local _f = io.open(Botlogger.filename, 'a')
+            _f:write(_logstring, '\n')
+            _f:close()
+        end
     end
 end
 
@@ -94,21 +96,54 @@ end
 
 function Botlogger.inithooks()
 
+    Botlogger.q_skip_or_select_blind = List.new()
+    Botlogger.q_select_cards_from_hand = List.new()
+    Botlogger.q_select_shop_action = List.new()
+    Botlogger.q_select_booster_action = List.new()
+    Botlogger.q_sell_jokers = List.new()
+    Botlogger.q_rearrange_jokers = List.new()
+    Botlogger.q_use_or_sell_consumables = List.new()
+    Botlogger.q_rearrange_consumables = List.new()
+    Botlogger.q_rearrange_hand = List.new()
+    
     -- Hook bot functions
+    if Bot.SETTINGS.replay == true or Bot.SETTINGS.api == true then
+        -- Redefine Bot functions to just return the next action from their queue
+        Botlogger.nextaction = 1
+        for k,v in pairs(Bot) do
+            if type(Bot[k]) == 'function' then
+                Bot[k] = function()
+                    if not List.isempty(Botlogger['q_'..k]) then
+                        local _action = List.popright(Botlogger['q_'..k])
+
+                        if _action[1] == Botlogger.nextaction then
+                            Botlogger.nextaction = Botlogger.nextaction + 1
+                            return unpack(_action[2])
+                        else
+                            List.pushright(Botlogger['q_'..k], _action)
+                            sendDebugMessage('q_'..k.." is not. Returning Bot.ACTIONS.PASS")
+                            return Bot.ACTIONS.PASS
+                        end
+                    else
+                        -- Return an action of "PASS" when the API is not enabled.
+                        -- When API is enabled, nothing is returned, and the system waits for the queue to be populated
+                        if Bot.SETTINGS.api == false then
+                            sendDebugMessage('q_'..k.." is empty. Returning Bot.ACTIONS.PASS")
+                            return Bot.ACTIONS.PASS
+                        else
+                            sendDebugMessage('q_'..k.." is empty. Waiting for API to populate queue...")
+                        end
+                    end
+                end
+            end
+        end 
+    end
+
+    -- Read replay file and populate action queues
     if Bot.SETTINGS.replay == true then
         local _replayfile = Botlogger.getfilename(Bot.SETTINGS)
 
         if Botlogger.fileexists(_replayfile) then
-
-            Botlogger.q_skip_or_select_blind = List.new()
-            Botlogger.q_select_cards_from_hand = List.new()
-            Botlogger.q_select_shop_action = List.new()
-            Botlogger.q_select_booster_action = List.new()
-            Botlogger.q_sell_jokers = List.new()
-            Botlogger.q_rearrange_jokers = List.new()
-            Botlogger.q_use_or_sell_consumables = List.new()
-            Botlogger.q_rearrange_consumables = List.new()
-            Botlogger.q_rearrange_hand = List.new()
 
             local _num_action = 0
             for line in io.lines(_replayfile) do
@@ -184,31 +219,7 @@ function Botlogger.inithooks()
                     _action[2] = _cards
                     List.pushleft(Botlogger.q_rearrange_hand, { _num_action, _action })
                 end
-            end
-
-            -- Redefine Bot functions to just return the next action from their queue
-            Botlogger.nextaction = 1
-            for k,v in pairs(Bot) do
-                if type(Bot[k]) == 'function' then
-                    Bot[k] = function()
-                        if not List.isempty(Botlogger['q_'..k]) then
-                            local _action = List.popright(Botlogger['q_'..k])
-
-                            if _action[1] == Botlogger.nextaction then
-                                Botlogger.nextaction = Botlogger.nextaction + 1
-                                return unpack(_action[2])
-                            else
-                                List.pushright(Botlogger['q_'..k], _action)
-                                sendDebugMessage('q_'..k.." is not ready. Returning Bot.ACTIONS.PASS")
-                                return Bot.ACTIONS.PASS
-                            end
-                        else
-                            sendDebugMessage('q_'..k.." is empty. Returning Bot.ACTIONS.PASS")
-                            return Bot.ACTIONS.PASS
-                        end
-                    end
-                end
-            end            
+            end           
         end
     elseif Bot.SETTINGS.replay == false then
         for k,v in pairs(Bot) do
