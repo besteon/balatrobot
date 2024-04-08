@@ -116,13 +116,19 @@ function Botlogger.inithooks()
                     if not List.isempty(Botlogger['q_'..k]) then
                         local _action = List.popright(Botlogger['q_'..k])
 
-                        if _action[1] == Botlogger.nextaction then
+                        if Bot.SETTINGS.api == false and _action[1] == Botlogger.nextaction then
                             Botlogger.nextaction = Botlogger.nextaction + 1
                             return unpack(_action[2])
-                        else
+
+                        elseif Bot.SETTINGS.api == false then
                             List.pushright(Botlogger['q_'..k], _action)
-                            sendDebugMessage('q_'..k.." is not. Returning Bot.ACTIONS.PASS")
+                            sendDebugMessage('q_'..k.." is not empty. Returning Bot.ACTIONS.PASS")
                             return Bot.ACTIONS.PASS
+
+                        -- We don't care about action order for the API.
+                        -- When the queue is populated, return the choice.
+                        elseif Bot.SETTINGS.api == true then
+                            return unpack(_action[2])
                         end
                     else
                         -- Return an action of "PASS" when the API is not enabled.

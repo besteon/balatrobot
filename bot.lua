@@ -24,24 +24,78 @@ Bot.ACTIONS = {
 }
 
 Bot.ACTIONPARAMS = { }
-Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BLIND] = 1
-Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BLIND] = 1
-Bot.ACTIONPARAMS[Bot.ACTIONS.PLAY_HAND] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.DISCARD_HAND] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.END_SHOP] = 1
-Bot.ACTIONPARAMS[Bot.ACTIONS.REROLL_SHOP] = 1
-Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_CARD] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_VOUCHER] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_BOOSTER] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BOOSTER_CARD] = 3
-Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BOOSTER_PACK] = 1
-Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_JOKER] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.USE_CONSUMABLE] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_CONSUMABLE] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_JOKERS] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_CONSUMABLES] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_HAND] = 2
-Bot.ACTIONPARAMS[Bot.ACTIONS.PASS] = 1
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BLIND] = {
+    num_args = 1,
+    func = "skip_or_select_blind"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BLIND] = {
+    num_args = 1,
+    func = "skip_or_select_blind"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.PLAY_HAND] = {
+    num_args = 2,
+    func = "select_cards_from_hand"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.DISCARD_HAND] = {
+    num_args = 2,
+    func = "select_cards_from_hand"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.END_SHOP] = {
+    num_args = 1,
+    func = "select_shop_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.REROLL_SHOP] = {
+    num_args = 1,
+    func = "select_shop_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_CARD] = {
+    num_args = 2,
+    func = "select_shop_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_VOUCHER] = {
+    num_args = 2,
+    func = "select_shop_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.BUY_BOOSTER] = {
+    num_args = 2,
+    func = "select_shop_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELECT_BOOSTER_CARD] = {
+    num_args = 3,
+    func = "select_booster_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.SKIP_BOOSTER_PACK] = {
+    num_args = 1,
+    func = "select_booster_action"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_JOKER] = {
+    num_args = 2,
+    func = "sell_jokers"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.USE_CONSUMABLE] = {
+    num_args = 2,
+    func = "use_or_sell_consumables"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.SELL_CONSUMABLE] = {
+    num_args = 2,
+    func = "use_or_sell_consumables"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_JOKERS] = {
+    num_args = 2,
+    func = "rearrange_jokers"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_CONSUMABLES] = {
+    num_args = 2,
+    func = "rearrange_consumables"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.REARRANGE_HAND] = {
+    num_args = 2,
+    func = "rearrange_hand"
+}
+Bot.ACTIONPARAMS[Bot.ACTIONS.PASS] = {
+    num_args = 1,
+    func = ""
+}
 
 -- CHANGE ME
 Bot.SETTINGS = {
@@ -57,10 +111,10 @@ Bot.SETTINGS = {
     action_delay = 0,
 
     -- Replay actions from file?
-    replay = true,
+    replay = false,
 
     -- Receive commands from the API?
-    api = false,
+    api = true,
 }
 
 --- Skips or selects the current blind
