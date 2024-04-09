@@ -20,50 +20,52 @@ function BalatrobotAPI.queueaction(action)
     List.pushleft(Botlogger['q_'.._params.func], { 0, action })
 end
 
+function BalatrobotAPI.parseaction(data)
+    -- Protocol is ACTION|arg1|arg2
+    action = data:match("^([%a%u_]*)")
+    params = data:match("|(.*)")
+
+    if action then
+        local _action = Bot.ACTIONS[action]
+        sendDebugMessage("Action is: " .. tostring(_action))
+
+        if not _action then
+            return nil
+        end
+
+        local _actiontable = { }
+        _actiontable[1] = _action
+
+        if params then
+            local _i = 2
+            for _arg in params:gmatch("[%d,]+") do
+                local _splitstring = { }
+                local _j = 1
+                for _str in _arg:gmatch('([^,]+)') do
+                    _splitstring[_j] = tonumber(_str) or _str
+                    _j = _j + 1
+                end
+                _actiontable[_i] = _splitstring
+                _i = _i + 1
+            end
+        end
+
+        return _actiontable
+    end
+end
+
 function BalatrobotAPI.update(dt)
     data, msg_or_ip, port_or_nil = udp:receivefrom()
 	if data then
 
-        -- Protocol is ACTION|arg1|arg2
-        action = data:match("^([%a%u_]*)")
-        params = data:match("|(.*)")
+        local _action = BalatrobotAPI.parseaction(data)
 
-        if action then
-            local _action = Bot.ACTIONS[action]
-            sendDebugMessage("Action is: " .. tostring(_action))
-
-            if not _action then
-                BalatrobotAPI.respond("Error: Invalid action "..action..". See Bot.ACTIONS for valid actions.")
-                socket.sleep(0.01)
-                return
-            end
-
-            local _actiontable = { }
-            _actiontable[1] = _action
-
-            if params then
-                local _i = 2
-                for _arg in params:gmatch("[%d,]+") do
-                    local _splitstring = { }
-                    local _j = 1
-                    for _str in _arg:gmatch('([^,]+)') do
-                        _splitstring[_j] = tonumber(_str) or _str
-                        _j = _j + 1
-                    end
-                    _actiontable[_i] = _splitstring
-                    _i = _i + 1
-                end
-            end
-
-            if #_actiontable > Bot.ACTIONPARAMS[_action].num_args then
-                BalatrobotAPI.respond("Error: Incorrect number of params for action " .. action)
-                socket.sleep(0.01)
-                return
-            end
-
-            BalatrobotAPI.queueaction(_actiontable)
-        else
+        if _action and #_action > 1 and #_action > Bot.ACTIONPARAMS[_action[1]].num_args then
+            BalatrobotAPI.respond("Error: Incorrect number of params for action " .. action)
+        elseif not _action then
             BalatrobotAPI.respond("Error: Incorrect message format. Should be ACTION|arg1|arg2")
+        else
+            BalatrobotAPI.queueaction(_action)
         end
 
 	elseif msg_or_ip ~= 'timeout' then
