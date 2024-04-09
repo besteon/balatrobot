@@ -21,6 +21,7 @@ Bot.ACTIONS = {
     REARRANGE_CONSUMABLES = 16,
     REARRANGE_HAND = 17,
     PASS = 18,
+    START_RUN = 19,
 }
 
 Bot.ACTIONPARAMS = { }
@@ -96,6 +97,11 @@ Bot.ACTIONPARAMS[Bot.ACTIONS.PASS] = {
     num_args = 1,
     func = ""
 }
+Bot.ACTIONPARAMS[Bot.ACTIONS.START_RUN] = {
+    num_args = 5,
+    func = "start_run"
+}
+
 
 -- CHANGE ME
 Bot.SETTINGS = {
@@ -114,7 +120,7 @@ Bot.SETTINGS = {
     replay = false,
 
     -- Receive commands from the API?
-    api = true,
+    api = false,
 }
 
 --- Skips or selects the current blind
@@ -233,6 +239,10 @@ end
 -- Return the full new order of the hand
 function Bot.rearrange_hand()
     --return Bot.ACTIONS.REARRANGE_HAND, { 2, 1, 3, 4, 5, 6, 7, 8 }
+end
+
+function Bot.start_run()
+    return Bot.ACTIONS.START_RUN, { Bot.SETTINGS.stake }, { Bot.SETTINGS.deck }, { Bot.SETTINGS.seed }, { Bot.SETTINGS.challenge }
 end
 
 

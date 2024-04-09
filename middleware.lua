@@ -472,32 +472,46 @@ local function w_gamestate(...)
     local _t, _k, _v = ...
 
     if _k == 'STATE' and _v == G.STATES.MENU then
-        queueaction(function()
-            local _play_button = G.MAIN_MENU_UI:get_UIE_by_ID('main_menu_play')
-            G.FUNCS[_play_button.config.button]({
-                config = { }
-            })
-            G.FUNCS.exit_overlay_menu()
-        end)
 
-        queueaction(function()
-            for k, v in pairs(G.P_CENTER_POOLS.Back) do
-                if v.name == Bot.SETTINGS.deck then
-                    G.GAME.selected_back:change_to(v)
-                    G.GAME.viewed_back:change_to(v)
-                end
+        firewhenready(function()
+            local _action, _stake, _deck, _seed, _challenge = Bot.start_run()
+            _stake = _stake ~= nil and tonumber(_stake[1]) or 1
+            _deck = _deck ~= nil and _deck[1] or "Red Deck"
+            _seed = _seed ~= nil and _seed[1] or nil
+            _challenge = _challenge ~= nil and _challenge[1] or nil
+            if _action then
+                return true, _action, _stake, _deck, _seed, _challenge
+            else
+                return false
             end
-
-            local _challenge = nil
-            if Bot.SETTINGS.challenge and Bot.SETTINGS.challenge ~= '' then
+        end,
+    
+        function(_action, _stake, _deck, _seed, _challenge)
+            
+            queueaction(function()
+                local _play_button = G.MAIN_MENU_UI:get_UIE_by_ID('main_menu_play')
+                G.FUNCS[_play_button.config.button]({
+                    config = { }
+                })
+                G.FUNCS.exit_overlay_menu()
+            end)
+    
+            queueaction(function()
+                for k, v in pairs(G.P_CENTER_POOLS.Back) do
+                    if v.name == _deck then
+                        G.GAME.selected_back:change_to(v)
+                        G.GAME.viewed_back:change_to(v)
+                    end
+                end
+    
                 for i = 1, #G.CHALLENGES do
-                    if G.CHALLENGES[i].name == Bot.SETTINGS.challenge then
+                    if G.CHALLENGES[i].name == _challenge then
                         _challenge = G.CHALLENGES[i]
                     end                    
                 end
-            end
-            G.FUNCS.start_run(nil, {stake = Bot.SETTINGS.stake, seed = Bot.SETTINGS.seed, challenge = _challenge})
-        end, 1.0)
+                G.FUNCS.start_run(nil, {stake = _stake, seed = _seed, challenge = _challenge})
+            end, 1.0)
+        end)
     end
 end
 

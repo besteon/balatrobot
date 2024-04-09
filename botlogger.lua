@@ -1,9 +1,4 @@
 
--- WIP
-
---Bot = require('bot')
---Hook = require('hook')
-
 Botlogger = { }
 Botlogger.path = ''
 Botlogger.filename = nil
@@ -105,6 +100,7 @@ function Botlogger.inithooks()
     Botlogger.q_use_or_sell_consumables = List.new()
     Botlogger.q_rearrange_consumables = List.new()
     Botlogger.q_rearrange_hand = List.new()
+    Botlogger.q_start_run = List.new()
     
     -- Hook bot functions
     if Bot.SETTINGS.replay == true or Bot.SETTINGS.api == true then

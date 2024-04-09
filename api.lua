@@ -47,7 +47,7 @@ function BalatrobotAPI.update(dt)
                     local _splitstring = { }
                     local _j = 1
                     for _str in _arg:gmatch('([^,]+)') do
-                        _splitstring[_j] = tonumber(_str)
+                        _splitstring[_j] = tonumber(_str) or _str
                         _j = _j + 1
                     end
                     _actiontable[_i] = _splitstring
