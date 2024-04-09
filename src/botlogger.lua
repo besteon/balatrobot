@@ -84,7 +84,7 @@ function Botlogger.start_run()
     end
 end
 
-function Botlogger.inithooks()
+function Botlogger.init()
 
     Botlogger.q_skip_or_select_blind = List.new()
     Botlogger.q_select_cards_from_hand = List.new()
@@ -142,7 +142,7 @@ function Botlogger.inithooks()
             for line in io.lines(_replayfile) do
                 _num_action = _num_action + 1
                 
-                local _action = BalatrobotAPI.parseaction(line)
+                local _action = Utils.parseaction(line)
                 sendDebugMessage(line)
                 local _params = Bot.ACTIONPARAMS[_action[1]]
                 for i = 2, #_action do

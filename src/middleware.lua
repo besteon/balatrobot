@@ -529,7 +529,6 @@ local function c_initgamehooks()
         firewhenready(function()
             return G.buttons and G.STATE_COMPLETE and G.STATE == G.STATES.SELECTING_HAND
         end, function()
-            sendDebugMessage("drawn to hand")
             c_sell_jokers()
             c_rearrange_jokers()
             c_use_or_sell_consumables()
