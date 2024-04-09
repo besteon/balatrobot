@@ -26,8 +26,8 @@ function Botlogger.getfilename(settings)
 end
 
 function Botlogger.logbotdecision(...)
-    local _action, _arg1, _arg2 = ...
-
+    local _args = {...}
+    local _action = table.remove(_args, 1)
     local _logstring = ''
     
     if _action then
@@ -38,19 +38,14 @@ function Botlogger.logbotdecision(...)
             end
         end
 
-        if _arg1 then
-            if type(_arg1) == 'number' then
-                _logstring = _logstring .. ',' .. tostring(_arg1)
-            elseif type(_arg1) == 'table' then
-                for i = 1, #_arg1 do
-                    _logstring = _logstring .. ',' .. tostring(_arg1[i])
+        for i = 1, #_args do
+            _logstring = _logstring..'|'
+            if type(_args[i]) == 'table' then
+                for j = 1, #_args[i] do
+                    _logstring = _logstring..','..tostring(_args[i][j])
                 end
-            end
-        end
-
-        if _arg2 then -- This is only the case for select_booster_action
-            for i = 1, #_arg2 do
-                _logstring = _logstring .. ',' .. tostring(_arg2[i])
+            else
+                _logstring = _logstring..tostring(_args[i])
             end
         end
 
@@ -118,7 +113,6 @@ function Botlogger.inithooks()
 
                         elseif Bot.SETTINGS.api == false then
                             List.pushright(Botlogger['q_'..k], _action)
-                            sendDebugMessage('q_'..k.." is not empty. Returning Bot.ACTIONS.PASS")
                             return Bot.ACTIONS.PASS
 
                         -- We don't care about action order for the API.
@@ -130,10 +124,7 @@ function Botlogger.inithooks()
                         -- Return an action of "PASS" when the API is not enabled.
                         -- When API is enabled, nothing is returned, and the system waits for the queue to be populated
                         if Bot.SETTINGS.api == false then
-                            sendDebugMessage('q_'..k.." is empty. Returning Bot.ACTIONS.PASS")
                             return Bot.ACTIONS.PASS
-                        else
-                            sendDebugMessage('q_'..k.." is empty. Waiting for API to populate queue...")
                         end
                     end
                 end
@@ -150,77 +141,14 @@ function Botlogger.inithooks()
             local _num_action = 0
             for line in io.lines(_replayfile) do
                 _num_action = _num_action + 1
-                local _action = { }
-
-                local _splitstring = { }
-                local _i = 1
-                for str in string.gmatch(line, '([^,]+)') do
-                    _splitstring[_i] = str
-                    _i = _i + 1
-                end
-
-                _action[1] = Bot.ACTIONS[_splitstring[1]]
                 
-                if _action[1] == Bot.ACTIONS.SELECT_BLIND or _action[1] == Bot.ACTIONS.SKIP_BLIND then
-                    List.pushleft(Botlogger.q_skip_or_select_blind, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.PLAY_HAND or _action[1] == Bot.ACTIONS.DISCARD_HAND then
-                    local _cards = { }
-                    for i = 2, #_splitstring do
-                        _cards[i-1] = tonumber(_splitstring[i])
-                    end
-                    _action[2] = _cards
-
-                    List.pushleft(Botlogger.q_select_cards_from_hand, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.END_SHOP or _action[1] == Bot.ACTIONS.REROLL_SHOP or _action[1] == Bot.ACTIONS.BUY_CARD or _action[1] == Bot.ACTIONS.BUY_VOUCHER or _action[1] == Bot.ACTIONS.BUY_BOOSTER then
-                    if #_splitstring > 1 then
-                        _action[2] = {tonumber(_splitstring[2])}
-                    end
-                    List.pushleft(Botlogger.q_select_shop_action, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.SELECT_BOOSTER_CARD or _action[1] == Bot.ACTIONS.SKIP_BOOSTER_PACK then
-                    if #_splitstring > 1 then
-                        _action[2] = {tonumber(_splitstring[2])}
-                    end
-
-                    if #_splitstring > 2 then
-                        local _cards = { }
-                        for i = 3, #_splitstring do
-                            _cards[i-2] = tonumber(_splitstring[i])
-                        end
-                        _action[3] = _cards
-                    end
-                    List.pushleft(Botlogger.q_select_booster_action, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.SELL_JOKER then
-                    local _cards = { }
-                    for i = 2, #_splitstring do
-                        _cards[i-1] = tonumber(_splitstring[i])
-                    end
-                    _action[2] = _cards
-                    List.pushleft(Botlogger.q_sell_jokers, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.USE_CONSUMABLE or _action[1] == Bot.ACTIONS.SELL_CONSUMABLE then
-                    _action[2] = {tonumber(_splitstring[2])}
-                    List.pushleft(Botlogger.q_use_or_sell_consumables, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.REARRANGE_JOKERS then
-                    local _cards = { }
-                    for i = 2, #_splitstring do
-                        _cards[i-1] = tonumber(_splitstring[i])
-                    end
-                    _action[2] = _cards
-                    List.pushleft(Botlogger.q_rearrange_jokers, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.REARRANGE_CONSUMABLES then
-                    local _cards = { }
-                    for i = 2, #_splitstring do
-                        _cards[i-1] = tonumber(_splitstring[i])
-                    end
-                    _action[2] = _cards
-                    List.pushleft(Botlogger.q_rearrange_consumables, { _num_action, _action })
-                elseif _action[1] == Bot.ACTIONS.REARRANGE_HAND then
-                    local _cards = { }
-                    for i = 2, #_splitstring do
-                        _cards[i-1] = tonumber(_splitstring[i])
-                    end
-                    _action[2] = _cards
-                    List.pushleft(Botlogger.q_rearrange_hand, { _num_action, _action })
+                local _action = BalatrobotAPI.parseaction(line)
+                sendDebugMessage(line)
+                local _params = Bot.ACTIONPARAMS[_action[1]]
+                for i = 2, #_action do
+                    sendDebugMessage(tostring(_action[i][1]))
                 end
+                List.pushleft(Botlogger['q_'.._params.func], { _num_action, _action })
             end           
         end
     elseif Bot.SETTINGS.replay == false then

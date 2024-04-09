@@ -38,7 +38,7 @@ function BalatrobotAPI.parseaction(data)
 
         if params then
             local _i = 2
-            for _arg in params:gmatch("[%d,]+") do
+            for _arg in params:gmatch("[%w%s,]+") do
                 local _splitstring = { }
                 local _j = 1
                 for _str in _arg:gmatch('([^,]+)') do
