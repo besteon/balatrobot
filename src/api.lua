@@ -8,13 +8,11 @@ BalatrobotAPI.socket = nil
 
 function BalatrobotAPI.notifyapiclient(...)
     -- TODO Generate gamestate json object
-    local _gamestate = Utils.getgamestate()
-
-
-    str = "json gamestate"
+    local _gamestate = Utils.getGamestate()
+    local _gamestateJsonString = json.encode(_gamestate)
 
     if BalatrobotAPI.socket then
-        BalatrobotAPI.socket:sendto(string.format("%s\n", str), msg_or_ip, port_or_nil)
+        BalatrobotAPI.socket:sendto(string.format("%s", _gamestateJsonString), msg_or_ip, port_or_nil)
     end
 end
 

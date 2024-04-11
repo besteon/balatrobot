@@ -12,6 +12,7 @@ function SMODS.INIT.BALATROBOT()
 	assert(load(NFS.read(mw.path .. "lib/hook.lua")))()
 	assert(load(NFS.read(mw.path .. "lib/bitser.lua")))()
 	assert(load(NFS.read(mw.path .. "lib/sock.lua")))()
+	assert(load(NFS.read(mw.path .. "lib/json.lua")))()
 
 	-- Mod specific files
 	assert(load(NFS.read(mw.path .. "src/utils.lua")))()
