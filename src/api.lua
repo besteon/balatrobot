@@ -37,14 +37,19 @@ function BalatrobotAPI.update(dt)
     data, msg_or_ip, port_or_nil = BalatrobotAPI.socket:receivefrom()
 	if data then
 
-        local _action = Utils.parseaction(data)
-
-        if _action and #_action > 1 and #_action > Bot.ACTIONPARAMS[_action[1]].num_args then
-            BalatrobotAPI.respond("Error: Incorrect number of params for action " .. action)
-        elseif not _action then
-            BalatrobotAPI.respond("Error: Incorrect message format. Should be ACTION|arg1|arg2")
+        if data == 'SEND_GAMESTATE' then
+            sendDebugMessage("SEND_GAMESTATE")
+            BalatrobotAPI.notifyapiclient()
         else
-            BalatrobotAPI.queueaction(_action)
+            local _action = Utils.parseaction(data)
+
+            if _action and #_action > 1 and #_action > Bot.ACTIONPARAMS[_action[1]].num_args then
+                BalatrobotAPI.respond("Error: Incorrect number of params for action " .. action)
+            elseif not _action then
+                BalatrobotAPI.respond("Error: Incorrect message format. Should be ACTION|arg1|arg2")
+            else
+                BalatrobotAPI.queueaction(_action)
+            end
         end
 
 	elseif msg_or_ip ~= 'timeout' then

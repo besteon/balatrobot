@@ -17,9 +17,11 @@ end
 function Utils.getHandData()
     local _hand = { }
 
-    for i = 1, #G.hand.cards do
-        local _card = Utils.getCardData(G.hand.cards[i])
-        _hand[i] = _card
+    if G and G.hand and G.hand.cards then
+        for i = 1, #G.hand.cards do
+            local _card = Utils.getCardData(G.hand.cards[i])
+            _hand[i] = _card
+        end
     end
 
     return _hand
@@ -28,9 +30,11 @@ end
 function Utils.getJokersData()
     local _jokers = { }
 
-    for i = 1, #G.jokers.cards do
-        local _card = Utils.getCardData(G.jokers.cards[i])
-        _jokers[i] = _card
+    if G and G.jokers and G.jokers.cards then
+        for i = 1, #G.jokers.cards do
+            local _card = Utils.getCardData(G.jokers.cards[i])
+            _jokers[i] = _card
+        end
     end
 
     return _jokers
@@ -39,9 +43,11 @@ end
 function Utils.getConsumablesData()
     local _consumables = { }
 
-    for i = 1, #G.consumeables.cards do
-        local _card = Utils.getCardData(G.consumeables.cards[i])
-        _consumables[i] = _card
+    if G and G.consumables and G.consumables.cards then
+        for i = 1, #G.consumeables.cards do
+            local _card = Utils.getCardData(G.consumeables.cards[i])
+            _consumables[i] = _card
+        end
     end
 
     return _consumables
@@ -68,7 +74,7 @@ end
 
 function Utils.getShopData()
     local _shop = { }
-    if not G.shop then return _shop end
+    if not G or not G.shop then return _shop end
     
     _shop.reroll_cost = G.GAME.current_round.reroll_cost
     _shop.cards = { }

@@ -102,7 +102,6 @@ Bot.ACTIONPARAMS[Bot.ACTIONS.START_RUN] = {
     func = "start_run"
 }
 
-
 -- CHANGE ME
 Bot.SETTINGS = {
     stake = 1,
@@ -117,10 +116,10 @@ Bot.SETTINGS = {
     action_delay = 0,
 
     -- Replay actions from file?
-    replay = true,
+    replay = false,
 
     -- Receive commands from the API?
-    api = false,
+    api = true,
 }
 
 --- Skips or selects the current blind
