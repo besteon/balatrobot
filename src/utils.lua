@@ -117,13 +117,19 @@ end
 function Utils.getGameData()
     local _game = { }
 
+    if G and G.STATE then
+        _game.state = G.STATE
+    end
+
     return _game
 end
 
 function Utils.getGamestate()
     -- TODO
     local _gamestate = { }
-    _gamestate.game = Utils.getGameData()
+
+    _gamestate = Utils.getGameData()
+    
     _gamestate.deckback = Utils.getBackData()
     _gamestate.deck = Utils.getDeckData() -- Ensure this is not ordered
     _gamestate.hand = Utils.getHandData()
