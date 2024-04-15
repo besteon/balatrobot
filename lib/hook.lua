@@ -109,7 +109,7 @@ function _clearfunc(obj, which, func_index)
 	return obj
 end
 
-local function ishooked(obj)
+function Hook.ishooked(obj)
 	if type(obj) == 'table' and obj.__inithook then return true end
 	return false
 end
@@ -131,7 +131,7 @@ function Hook.addonwrite(obj, func, ephemeral)
 end
 
 function Hook.clear(obj)
-	if ishooked(obj) then
+	if Hook.ishooked(obj) then
 		for i = 1, #Hook.FUNCTYPES, 1 do
 			obj[Hook.FUNCTYPES[i]] = { }
 		end

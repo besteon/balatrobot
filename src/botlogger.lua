@@ -104,6 +104,7 @@ function Botlogger.init()
         for k,v in pairs(Bot) do
             if type(Bot[k]) == 'function' then
                 Bot[k] = function()
+                    --sendDebugMessage(k)
                     if not List.isempty(Botlogger['q_'..k]) then
                         local _action = List.popright(Botlogger['q_'..k])
 

@@ -56,6 +56,10 @@ end
 function Utils.getBlindData()
     local _blinds = { }
 
+    if G and G.GAME then
+        _blinds.ondeck = G.GAME.blind_on_deck
+    end
+
     return _blinds
 end
 
@@ -111,6 +115,10 @@ end
 function Utils.getRoundData()
     local _current_round = { }
 
+    if G and G.GAME and G.GAME.current_round then
+        _current_round.discards_left = G.GAME.current_round.discards_left
+    end
+
     return _current_round
 end
 
@@ -119,6 +127,16 @@ function Utils.getGameData()
 
     if G and G.STATE then
         _game.state = G.STATE
+        _game.num_hands_played = G.GAME.hands_played
+        _game.num_skips = G.GAME.Skips
+        _game.round = G.GAME.round
+        _game.discount_percent = G.GAME.discount_percent
+        _game.interest_cap = G.GAME.interest_cap
+        _game.inflation = G.GAME.inflation
+        _game.dollars = G.GAME.dollars
+        _game.max_jokers = G.GAME.max_jokers
+        _game.bankrupt_at = G.GAME.bankrupt_at
+        _game.chips = _game.chips
     end
 
     return _game
@@ -151,7 +169,6 @@ function Utils.parseaction(data)
 
     if action then
         local _action = Bot.ACTIONS[action]
-        sendDebugMessage("Action is: " .. tostring(_action))
 
         if not _action then
             return nil
@@ -176,6 +193,48 @@ function Utils.parseaction(data)
 
         return _actiontable
     end
+end
+
+Utils.ERROR = {
+    NOERROR = 1,
+    NUMPARAMS = 2,
+    MSGFORMAT = 3,
+    INVALIDACTION = 4,
+}
+
+function Utils.validateAction(action)
+    if action and #action > 1 and #action > Bot.ACTIONPARAMS[action[1]].num_args then
+        return Utils.ERROR.NUMPARAMS
+    elseif not action then
+        return Utils.ERROR.MSGFORMAT
+    else
+        if not Bot.ACTIONPARAMS[action[1]].isvalid(action) then
+            return Utils.ERROR.INVALIDACTION
+        end
+    end
+
+    return Utils.ERROR.NOERROR
+end
+
+function Utils.isTableUnique(table)
+    if table == nil then return true end
+
+    local _seen = { }
+    for i = 1, #table do
+        if _seen[table[i]] then return false end
+        _seen[table[i]] = table[i]
+    end
+
+    return true
+end
+
+function Utils.isTableInRange(table, min, max)
+    if table == nil then return true end
+
+    for i = 1, #table do
+        if table[i] < min or table[i] > max then return false end
+    end
+    return true
 end
 
 return Utils
