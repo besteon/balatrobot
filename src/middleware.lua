@@ -493,7 +493,6 @@ function Middleware.c_start_run()
     end,
 
     function(_action, _stake, _deck, _seed, _challenge)
-        
         queueaction(function()
             local _play_button = G.MAIN_MENU_UI:get_UIE_by_ID('main_menu_play')
             G.FUNCS[_play_button.config.button]({
@@ -523,6 +522,12 @@ end
 
 local function w_gamestate(...)
     local _t, _k, _v = ...
+
+    -- If we lose a run, we want to go back to the main menu
+    -- Before we try to start a new run
+    if _k == 'STATE' and _v == G.STATES.GAME_OVER then
+        G.FUNCS.go_to_menu({})
+    end
 
     if _k == 'STATE' and _v == G.STATES.MENU then
         Middleware.c_start_run()

@@ -19,6 +19,8 @@ function Botlogger.getfilename(settings)
     _filename = _filename .. '_' .. tostring(settings.deck)
     _filename = _filename .. '_' .. tostring(settings.stake)
     _filename = _filename .. '_' .. tostring(settings.challenge)
+    local port = arg[1] or BALATRO_BOT_CONFIG.port
+    _filename = _filename .. '_' .. port
     _filename = _filename .. '.run'
     --_filename = Botlogger.path .. _filename
     sendDebugMessage(_filename)

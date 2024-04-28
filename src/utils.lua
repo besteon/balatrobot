@@ -4,6 +4,11 @@ Utils = { }
 function Utils.getCardData(card)
     local _card = { }
 
+    _card.label = card.label
+    _card.name = card.config.card.name
+    _card.suit = card.config.card.suit
+    _card.value = card.config.card.value
+    _card.card_key = card.config.card_key
 
     return _card
 end

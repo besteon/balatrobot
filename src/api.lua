@@ -43,12 +43,12 @@ function BalatrobotAPI.update(dt)
         sendDebugMessage('new socket')
         BalatrobotAPI.socket = socket.udp()
         BalatrobotAPI.socket:settimeout(0)
-        BalatrobotAPI.socket:setsockname('*', 12345)
+        local port = arg[1] or BALATRO_BOT_CONFIG.port
+        BalatrobotAPI.socket:setsockname('127.0.0.1', tonumber(port))
     end
 
     data, msg_or_ip, port_or_nil = BalatrobotAPI.socket:receivefrom()
 	if data then
-
         if data == 'HELLO\n' or data == 'HELLO' then
             BalatrobotAPI.notifyapiclient()
         else
@@ -71,13 +71,64 @@ function BalatrobotAPI.update(dt)
 		sendDebugMessage("Unknown network error: "..tostring(msg))
 	end
 	
-	socket.sleep(0.01)
+    -- No idea if this is necessary
+    -- Without this being commented out, FPS capped out at ~80 for me
+	-- socket.sleep(0.01)
 end
 
 function BalatrobotAPI.init()
-
     love.update = Hook.addcallback(love.update, BalatrobotAPI.update)
 
+    -- Tell the game engine that every frame is 8/60 seconds long
+    -- Speeds up the game execution
+    -- Values higher than this seem to cause instability
+    if BALATRO_BOT_CONFIG.dt then
+        love.update = Hook.addbreakpoint(love.update, function(dt)
+            return BALATRO_BOT_CONFIG.dt
+        end)
+    end
+
+    -- Disable FPS cap
+    if BALATRO_BOT_CONFIG.uncap_fps then
+        G.FPS_CAP = 999999.0
+    end
+
+    -- Makes things move instantly instead of sliding
+    if BALATRO_BOT_CONFIG.instant_move then
+        function Moveable.move_xy(self, dt)
+            -- Directly set the visible transform to the target transform
+            self.VT.x = self.T.x
+            self.VT.y = self.T.y
+        end
+    end
+
+    -- Forcibly disable vsync
+    if BALATRO_BOT_CONFIG.disable_vsync then
+        love.window.setVSync(0)
+    end
+
+    -- Disable card scoring animation text
+    if BALATRO_BOT_CONFIG.disable_card_eval_status_text then
+        card_eval_status_text = function(card, eval_type, amt, percent, dir, extra) end
+    end
+
+    -- Only draw/present every Nth frame
+    local original_draw = love.draw
+    local draw_count = 0
+    love.draw = function()
+        draw_count = draw_count + 1
+        if draw_count % BALATRO_BOT_CONFIG.frame_ratio == 0 then
+            original_draw()
+        end
+    end
+
+    local original_present = love.graphics.present
+    love.graphics.present = function()
+        if draw_count % BALATRO_BOT_CONFIG.frame_ratio == 0 then
+            original_present()
+        end
+    end
+    
     sendDebugMessage('init api')
     if Bot.SETTINGS.api == true then
         Middleware.c_play_hand = Hook.addbreakpoint(Middleware.c_play_hand, function()

@@ -7,6 +7,12 @@
 function SMODS.INIT.BALATROBOT()
 	mw = SMODS.findModByID("Balatrobot-v0.3")
 
+	-- Load the mod configuration
+	assert(load(NFS.read(mw.path .. "config.lua")))()
+	if not BALATRO_BOT_CONFIG.enabled then
+		return
+	end
+
 	-- External libraries
 	assert(load(NFS.read(mw.path .. "lib/list.lua")))()
 	assert(load(NFS.read(mw.path .. "lib/hook.lua")))()
